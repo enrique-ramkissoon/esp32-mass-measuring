@@ -11,11 +11,9 @@
 
 #include "nvs_flash.h"
 
-#include "esp_system.h"
 #include "esp_wifi.h"
+#include "esp_system.h"
 #include "esp_interface.h"
-
-#include "aws_application_version.h"
 
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
