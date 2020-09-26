@@ -23,13 +23,22 @@
 
 void hello_world_task(void* pvParameters)
 {
-    for(;;)
+    while(true)
     {
-        configPRINTF(  ("Hello World!\n ")  );
+        configPRINTF(("Hello Task1!\n"));
 
         vTaskDelay(pdMS_TO_TICKS(1000));   //task goes to "blocked" state for 1s
+    }
 
-        //pdMS_TO_TICKS defined in freertos-kernel/include/projdefs.h
+}
+
+void hello_world_task2(void* pvParameters)
+{
+    while(true)
+    {
+        configPRINTF(("Hello Task2!\n"));
+
+        vTaskDelay(pdMS_TO_TICKS(1000));   //task goes to "blocked" state for 1s
     }
 
 }
@@ -66,47 +75,13 @@ int app_main(void)
 {
     prvMiscInitialization();
 
-    TaskHandle_t hello_world = NULL;
-
-    xTaskCreate(hello_world_task,"HelloWorldTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,&hello_world);
-
-    /*
-    xTaskCreate(task,name,stackSize,parameters,priority,TaskHandle_t*)
-
-    BY default configMINIMAL_STACK_SIZE set to 768 in FreeRTOSconfig.h
-
-    configMAX_PRIORITIES = 7... defined in FreeRTOSConfig.h 
-        so configMAX_PRIORITIES -1 = Maximum possible priority ?
-
-
-    Task with the highest priority value executes first.
-
-    */
-
-
-   //Start running tasks.
-   //vTaskStartScheduler();
+    if( SYSTEM_Init() == pdPASS )
+    {
+        xTaskCreate(hello_world_task,"HelloTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,NULL);
+        xTaskCreate(hello_world_task2,"HelloTask2",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -2,NULL);
+    }
 
     return 0;
-}
-
-extern void esp_vApplicationTickHook();
-void IRAM_ATTR vApplicationTickHook()
-{
-    esp_vApplicationTickHook();
-}
-
-/*-----------------------------------------------------------*/
-extern void esp_vApplicationIdleHook();
-void vApplicationIdleHook()
-{
-    esp_vApplicationIdleHook();
-}
-
-/*-----------------------------------------------------------*/
-
-void vApplicationDaemonTaskStartupHook( void )
-{
 }
 
 #if !AFR_ESP_LWIP
