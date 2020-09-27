@@ -15,6 +15,8 @@
 #include "esp_system.h"
 #include "esp_interface.h"
 
+#include "hx711_driver.h"
+
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
 #define mainLOGGING_TASK_STACK_SIZE         ( configMINIMAL_STACK_SIZE * 4 )
@@ -23,7 +25,7 @@ void hello_world_task(void* pvParameters)
 {
     while(true)
     {
-        configPRINTF(("Hello Task1!\n"));
+        configPRINTF(("Hello Task2!\n"));
 
         vTaskDelay(pdMS_TO_TICKS(1000));   //task goes to "blocked" state for 1s
     }
@@ -34,7 +36,7 @@ void hello_world_task2(void* pvParameters)
 {
     while(true)
     {
-        configPRINTF(("Hello Task2!\n"));
+        configPRINTF(("Hello Task3!\n"));
 
         vTaskDelay(pdMS_TO_TICKS(1000));   //task goes to "blocked" state for 1s
     }
@@ -75,8 +77,10 @@ int app_main(void)
 
     if( SYSTEM_Init() == pdPASS )
     {
-        xTaskCreate(hello_world_task,"HelloTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,NULL);
-        xTaskCreate(hello_world_task2,"HelloTask2",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -2,NULL);
+        //xTaskCreate(hello_world_task,"HelloTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,NULL);
+        //xTaskCreate(hello_world_task2,"HelloTask2",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -2,NULL);
+
+        initialize_hx711();
     }
 
     return 0;
