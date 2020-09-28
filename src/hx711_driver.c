@@ -5,35 +5,10 @@
 #include <stdint.h>
 
 #include "driver/gpio.h"
+#include "rom/ets_sys.h"
 
 gpio_num_t GPIO_OUTPUT_SCK = GPIO_NUM_17;
 gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
-
-void sck_task(void* pvParameters)
-{
-    while(true)
-    {
-        if(gpio_get_level(GPIO_INPUT_DT) == 1)
-        {
-            configPRINTF(("READING HIGH\n"));
-        }
-        else
-        {
-            configPRINTF(("READING LOW\n"));
-        }
-        
-
-        // configPRINTF(("Setting Low\n"));
-        // gpio_set_level(GPIO_OUTPUT_SCK,0);
-
-        // vTaskDelay(pdMS_TO_TICKS(2000));
-
-        // configPRINTF(("Setting High\n"));
-        // gpio_set_level(GPIO_OUTPUT_SCK,1);
-
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
 
 void initialize_hx711()
 {
@@ -64,4 +39,77 @@ void initialize_hx711()
 
     xTaskCreate(sck_task,"SCKTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,NULL);
 
+}
+
+void sck_task(void* pvParameters)
+{
+    //Give HX711 a time to initialize
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    while(true)
+    {
+        configPRINTF(("Read Task\n"));
+        // if(gpio_get_level(GPIO_INPUT_DT) == 1)
+        // {
+        //     configPRINTF(("READING HIGH\n"));
+        // }
+        // else
+        // {
+        //     configPRINTF(("READING LOW\n"));
+        // }
+        
+
+        // configPRINTF(("Setting Low\n"));
+        // gpio_set_level(GPIO_OUTPUT_SCK,0);
+
+        // vTaskDelay(pdMS_TO_TICKS(2000));
+
+        // configPRINTF(("Setting High\n"));
+        // gpio_set_level(GPIO_OUTPUT_SCK,1);
+
+        if(gpio_get_level(GPIO_INPUT_DT) == 0)
+        {
+            //Once DT goes low, ADC output is ready.
+
+            gpio_set_level(GPIO_OUTPUT_SCK,0);
+
+            uint32_t result = 0;
+
+            //Begin reading data in.
+            //The read is executed in a critical block to prevent the scheduler from switching tasks while reading
+            //This ensures that PD_SCK is never high for more than 60us (power down condition)
+            //This critical block takes 98us to run
+            taskENTER_CRITICAL();
+                for(int i=23;i>=0;i--)
+                {
+                    gpio_set_level(GPIO_OUTPUT_SCK,1);
+
+                    //DT takes 0.1us to ready after PD_SDK is set High.
+                    //PD_SDK high time ranges 0.2 - 50us
+                    ets_delay_us(2);
+
+                    gpio_set_level(GPIO_OUTPUT_SCK,0);
+
+                    uint32_t dt_bit = gpio_get_level(GPIO_INPUT_DT);
+                    dt_bit = dt_bit << i;
+                    result = result | dt_bit;
+
+                    //PD_SCK Low time ranges from 0.2us - infinity
+                    ets_delay_us(2);
+                }
+
+                //One additional PD_SCK clock cycle to set gain of next read to 128
+                gpio_set_level(GPIO_OUTPUT_SCK,1);
+                ets_delay_us(2);
+                gpio_set_level(GPIO_OUTPUT_SCK,0);
+
+            taskEXIT_CRITICAL();
+
+            result = (~result)+1; //HX711 outputs in 2s complement
+            configPRINTF(("Result= %u\n",result));
+        }
+
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
