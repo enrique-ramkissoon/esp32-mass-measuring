@@ -37,7 +37,8 @@ void initialize_hx711()
     gpio_config(&sck_config);
     gpio_config(&dt_config);
 
-    xTaskCreate(sck_task,"SCKTask",configMINIMAL_STACK_SIZE,NULL,configMAX_PRIORITIES -1,NULL);
+    //TODO: Calculate a proper stack allocation
+    xTaskCreate(sck_task,"SCKTask",20000,NULL,configMAX_PRIORITIES -1,NULL);
 
 }
 
@@ -48,7 +49,7 @@ void sck_task(void* pvParameters)
 
     while(true)
     {
-        configPRINTF(("Read Task\n"));
+        //configPRINTF(("Read Task\n"));
         // if(gpio_get_level(GPIO_INPUT_DT) == 1)
         // {
         //     configPRINTF(("READING HIGH\n"));
@@ -105,11 +106,22 @@ void sck_task(void* pvParameters)
 
             taskEXIT_CRITICAL();
 
-            result = (~result)+1; //HX711 outputs in 2s complement
-            configPRINTF(("Result= %u\n",result));
+            int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement
+            configPRINTF(("Result= %i\n",result32));
+
+            //Range of ADC Values = 23 ones = 8388607
+            //Range of Differential input = 0.5*(Vdd/Gain) = 0.5*(3.3/128) = 12.891
+            portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891;
+            configPRINTF(("Weight = %f\n",Vin));
+
+            //3.3mV => 10kg
+            //1g => (3.3e-3)/10000 = 0.33uV /g
+            double weight = (Vin/(0.33e-6));
+
+            configPRINTF(("Weight /g = %f\n",weight));
         }
 
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
