@@ -3,5 +3,7 @@
 
 void initialize_hx711();
 void sck_task(void* pvParameters);
+double get_weight();
+void tare();
 
 #endif
