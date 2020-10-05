@@ -1,6 +1,3 @@
-//#include "iot_config.h"
-
-/* FreeRTOS includes. */
 
 #include "FreeRTOS.h"
 #include "task.h"
