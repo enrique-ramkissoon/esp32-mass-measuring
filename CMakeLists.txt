@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.13)
 
 project(esp32MassMeasure)
 
-add_executable(massMeasure src/main.c)
+add_executable(massMeasure  src/main.c
+                            src/hx711_driver.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE massMeasure)
@@ -10,6 +11,8 @@ set(IDF_PROJECT_EXECUTABLE massMeasure)
 #Replace FreeRTOS configs with custom headers.
 #Only change made in this project is disabling tick and idle hooks. 
 include_directories(BEFORE config_files)
+
+include_directories(BEFORE ./include)
 
 # Add FreeRTOS as a subdirectory. AFR_BOARD tells which board to target.
 set(AFR_BOARD espressif.esp32_devkitc CACHE INTERNAL "")
