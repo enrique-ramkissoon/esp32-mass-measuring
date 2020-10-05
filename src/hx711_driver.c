@@ -40,38 +40,20 @@ void initialize_hx711()
     gpio_config(&dt_config);
 
     //TODO: Calculate a proper stack allocation
-    xTaskCreate(sck_task,"SCKTask",20000,NULL,configMAX_PRIORITIES -1,NULL);
+    xTaskCreate(mass_read_task,"MassRead",20000,NULL,configMAX_PRIORITIES -1,NULL);
 
 }
 
-void sck_task(void* pvParameters)
+void mass_read_task(void* pvParameters)
 {
     //Give HX711 time to initialize
     vTaskDelay(pdMS_TO_TICKS(500));
 
-    tare();
+    configPRINTF(("Taring\n"));
+    tare(10);
 
     while(true)
     {
-        //configPRINTF(("Read Task\n"));
-        // if(gpio_get_level(GPIO_INPUT_DT) == 1)
-        // {
-        //     configPRINTF(("READING HIGH\n"));
-        // }
-        // else
-        // {
-        //     configPRINTF(("READING LOW\n"));
-        // }
-        
-
-        // configPRINTF(("Setting Low\n"));
-        // gpio_set_level(GPIO_OUTPUT_SCK,0);
-
-        // vTaskDelay(pdMS_TO_TICKS(2000));
-
-        // configPRINTF(("Setting High\n"));
-        // gpio_set_level(GPIO_OUTPUT_SCK,1);
-
         if(gpio_get_level(GPIO_INPUT_DT) == 0)
         {
             double weight = get_weight();
@@ -123,7 +105,7 @@ double get_weight()
 
     taskEXIT_CRITICAL();
 
-    int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement
+    int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
     configPRINTF(("Result= %i\n",result32));
 
     //Range of ADC Values = 23 ones = 8388607
@@ -138,7 +120,18 @@ double get_weight()
     return(weight);
 }
 
-void tare()
+void tare(int iterations)
 {
-    TARE = get_weight();
+    double total = 0;
+    for(int i=0;i<iterations;i++)
+    {
+        while(gpio_get_level(GPIO_INPUT_DT) == 1)
+        {
+            vTaskDelay(pdMS_TO_TICKS(125));
+        }
+
+        total += get_weight();
+    }
+
+    TARE = (total/iterations);
 }
