@@ -1,11 +1,5 @@
 #include "ble_init.h"
 
-#include <bt_hal_gatt_types.h>
-
-#include "bt_hal_manager_adapter_ble.h"
-#include "bt_hal_manager.h"
-#include "bt_hal_gatt_server.h"
-
 #include "iot_ble.h"
 #include "iot_ble_config.h"
 #include "iot_ble_wifi_provisioning.h"
