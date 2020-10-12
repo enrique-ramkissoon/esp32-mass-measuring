@@ -24,3 +24,7 @@ add_subdirectory(amazon-freertos)
 target_link_libraries(massMeasure PRIVATE AFR::demo_mqtt)
 target_link_libraries(massMeasure PRIVATE AFR::demo_ble_numeric_comparison)
 target_link_libraries(massMeasure PRIVATE AFR::demo_ble)
+target_link_libraries(massMeasure PRIVATE AFR::ble)
+target_link_libraries(massMeasure PRIVATE AFR::ble_hal)
+target_link_libraries(massMeasure PRIVATE AFR::ble_wifi_provisioning)
+

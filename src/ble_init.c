@@ -101,18 +101,22 @@ static const BTService_t xGattDemoService =
   .pxBLEAttributes = (BTAttribute_t *)pxAttributeTable
 };
 
-void IotBle_AddCustomServicesCb(void)
-{
-    BTStatus_t xStatus;
+// void IotBle_AddCustomServicesCb(void)
+// {
+//     BTStatus_t xStatus;
 
-    configPRINTF(("Creating BLE Service\n"));
-    /* Select the handle buffer. */
-    xStatus = IotBle_CreateService( (BTService_t *)&xGattDemoService, (IotBleAttributeEventCallback_t *)pxCallBackArray );
-}
+//     configPRINTF(("Creating BLE Service\n"));
+//     /* Select the handle buffer. */
+//     xStatus = IotBle_CreateService( (BTService_t *)&xGattDemoService, (IotBleAttributeEventCallback_t *)pxCallBackArray );
+// }
 
 void start_ble()
 {
+    
+
     configPRINTF(("Starting BLE\n"));
+
+    IotBle_CreateService( (BTService_t *)&xGattDemoService, (IotBleAttributeEventCallback_t *)pxCallBackArray );
     IotBle_Init();
     vTaskDelay(1000);
 }
