@@ -14,6 +14,18 @@
 #include "bt_hal_manager.h"
 #include "iot_system_init.h"
 #include "iot_logging_task.h"
+#include "iot_init.h"
+
+#include "iot_config.h"
+
+#include <string.h>
+#include "aws_clientcredential.h"
+#include "aws_clientcredential_keys.h"
+#include "iot_demo_logging.h"
+#include "iot_network_manager_private.h"
+#include "platform/iot_threads.h"
+#include "aws_demo.h"
+#include "iot_init.h"
 
 #include "nvs_flash.h"
 #if !AFR_ESP_LWIP
@@ -49,6 +61,8 @@
     #include "iot_ble_numericComparison.h"
 #endif
 
+#include "ble_server.h"
+
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
 #define mainLOGGING_TASK_STACK_SIZE         ( configMINIMAL_STACK_SIZE * 4 )
@@ -75,6 +89,108 @@ static void prvMiscInitialization( void );
 #endif
 
 /*-----------------------------------------------------------*/
+
+
+static int _initialize( demoContext_t * pContext )
+{
+    int status = EXIT_SUCCESS;
+    bool commonLibrariesInitialized = false;
+    bool semaphoreCreated = false;
+
+    /* Initialize common libraries required by network manager and demo. */
+    if( IotSdk_Init() == true )
+    {
+        commonLibrariesInitialized = true;
+    }
+    else
+    {
+        IotLogInfo( "Failed to initialize the common library." );
+        status = EXIT_FAILURE;
+    }
+
+    if( status == EXIT_SUCCESS )
+    {
+        if( AwsIotNetworkManager_Init() != pdTRUE )
+        {
+            IotLogError( "Failed to initialize network manager library." );
+            status = EXIT_FAILURE;
+        }
+    }
+
+    // if( status == EXIT_SUCCESS )
+    // {
+    //     /* Create semaphore to signal that a network is available for the demo. */
+    //     if( IotSemaphore_Create( &demoNetworkSemaphore, 0, 1 ) != true )
+    //     {
+    //         IotLogError( "Failed to create semaphore to wait for a network connection." );
+    //         status = EXIT_FAILURE;
+    //     }
+    //     else
+    //     {
+    //         semaphoreCreated = true;
+    //     }
+    // }
+
+    // if( status == EXIT_SUCCESS )
+    // {
+    //     /* Subscribe for network state change from Network Manager. */
+    //     // if( AwsIotNetworkManager_SubscribeForStateChange( pContext->networkTypes,
+    //     //                                                   _onNetworkStateChangeCallback,
+    //     //                                                   pContext,
+    //     //                                                   &subscription ) != pdTRUE )
+    //     {
+    //         IotLogError( "Failed to subscribe network state change callback." );
+    //         status = EXIT_FAILURE;
+    //     }
+    // }
+
+    /* Initialize all the  networks configured for the device. */
+    if( status == EXIT_SUCCESS )
+    {
+        if( AwsIotNetworkManager_EnableNetwork( AWSIOT_NETWORK_TYPE_BLE ) != AWSIOT_NETWORK_TYPE_BLE )
+        {
+            IotLogError( "Failed to initialize all the networks configured for the device." );
+            status = EXIT_FAILURE;
+        }
+    }
+
+    // if( status == EXIT_SUCCESS )
+    // {
+    //     /* Wait for network configured for the demo to be initialized. */
+    //     demoConnectedNetwork = _getConnectedNetworkForDemo( pContext );
+
+    //     if( demoConnectedNetwork == AWSIOT_NETWORK_TYPE_NONE )
+    //     {
+    //         /* Network not yet initialized. Block for a network to be initialized. */
+    //         IotLogInfo( "No networks connected for the demo. Waiting for a network connection. " );
+    //         demoConnectedNetwork = _waitForDemoNetworkConnection( pContext );
+    //     }
+    // }
+
+    // if( status == EXIT_FAILURE )
+    // {
+    //     if( semaphoreCreated == true )
+    //     {
+    //         IotSemaphore_Destroy( &demoNetworkSemaphore );
+    //     }
+
+    //     if( commonLibrariesInitialized == true )
+    //     {
+    //         IotSdk_Cleanup();
+    //     }
+    // }
+
+    return status;
+}
+
+void ble_task(void* pvParameters)
+{
+    demoContext_t* pContext = (demoContext_t *)pvParameters;
+
+    _initialize(pContext);
+
+    vGattDemoSvcInit();
+}
 
 /**
  * @brief Application runtime entry point.
@@ -109,8 +225,16 @@ int app_main( void )
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_CLASSIC_BT ) );
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
         #endif /* if BLE_ENABLED */
-        /* Run all demos. */
-        DEMO_RUNNER_RunDemos();
+
+        static demoContext_t context =
+        {
+            .networkTypes                = AWSIOT_NETWORK_TYPE_BLE,
+            .demoFunction                = vGattDemoSvcInit,
+            .networkConnectedCallback    = NULL,
+            .networkDisconnectedCallback = NULL
+        };
+
+        xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,&context,5,NULL);
     }
 
     /* Start the scheduler.  Initialization that requires the OS to be running,
