@@ -391,26 +391,13 @@ int vGattDemoSvcInit()
             if( connId == usBLEConnectionID )
             {
                 IotLogInfo( " Disconnected from BLE device. Stopping the counter update \n" );
-                vGattDemoSvcStop();
+                //vGattDemoSvcStop();
             }
         }
     }
 
 #endif /* if ( IOT_BLE_ADD_CUSTOM_SERVICES == 1 ) */
 
-/*-----------------------------------------------------------*/
-
-void vGattDemoSvcStart( void )
-{
-    ( void ) xTaskNotify( xCounterUpdateTask, EVENT_BIT( eGattDemoStart ), eSetBits );
-}
-
-/*-----------------------------------------------------------*/
-
-void vGattDemoSvcStop( void )
-{
-    ( void ) xTaskNotify( xCounterUpdateTask, EVENT_BIT( eGattDemoStop ), eSetBits );
-}
 
 /*-----------------------------------------------------------*/
 
