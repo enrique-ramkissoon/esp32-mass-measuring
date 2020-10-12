@@ -3,8 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 project(esp32MassMeasure)
 
 add_executable(massMeasure  src/main.c
-                            src/hx711_driver.c
-                            src/ble_init.c)
+                            src/hx711_driver.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE massMeasure)
