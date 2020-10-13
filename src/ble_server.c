@@ -414,6 +414,8 @@ void vReadCounter( IotBleAttributeEvent_t * pEventParam )
 
     if( pEventParam->xEventType == eBLERead )
     {
+        ulCounter+=1; //ADDED THIS LINE TO INCREMENT ON EACH READ
+
         pxReadParam = pEventParam->pParamRead;
         xResp.pAttrData->handle = pxReadParam->attrHandle;
         xResp.pAttrData->pData = ( uint8_t * ) &ulCounter;
@@ -443,11 +445,14 @@ void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
         pxWriteParam = pEventParam->pParamWrite;
         xResp.pAttrData->handle = pxWriteParam->attrHandle;
 
-        if( pxWriteParam->length == 1 )
+        if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0xFF)
         {
-            ucEvent = pxWriteParam->pValue[ 0 ];
-            xTaskNotify( xCounterUpdateTask, EVENT_BIT( ucEvent ), eSetBits );
+            // ucEvent = pxWriteParam->pValue[ 0 ];
+            // xTaskNotify( xCounterUpdateTask, EVENT_BIT( ucEvent ), eSetBits );
+
+            ulCounter = 0;
             xResp.eventStatus = eBTStatusSuccess;
+
         }
 
         if( pEventParam->xEventType == eBLEWrite )
