@@ -23,14 +23,10 @@
  * http://www.FreeRTOS.org
  */
 
-/**
- * @file aws_ble_gatt_server_demo.c
- * @brief Sample demo for a BLE GATT server
- */
 #include "FreeRTOSConfig.h"
 #include "iot_demo_logging.h"
 #include "iot_ble_config.h"
-//#include "aws_ble_gatt_server_demo.h"
+
 #include "iot_ble.h"
 #include "task.h"
 #include "semphr.h"
@@ -41,13 +37,11 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "FreeRTOS.h"
-/* The config header is always included first. */
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
-/**
- * @brief  GATT service, characteristics and descriptor UUIDs used by the sample.
- */
+//GATT service, characteristics and descriptor UUIDs used by the sample.
+
 #define gattDemoSVC_UUID                 { 0x00, 0xFF, 0x69, 0xD6, 0xC6, 0xBF, 0x14, 0x90, 0x25, 0x41, 0xE7, 0x49, 0xE3, 0xD9, 0xF2, 0xC6 }
 #define gattDemoCHAR_UUID_MASK           0x69, 0xD6, 0xC6, 0xBF, 0x14, 0x90, 0x25, 0x41, 0xE7, 0x49, 0xE3, 0xD9, 0xF2, 0xC6
 #define gattDemoCHAR_COUNTER_UUID        { 0x01, 0xFF, gattDemoCHAR_UUID_MASK }
@@ -59,14 +53,6 @@
  */
 #define ENABLE_NOTIFICATION              ( 0x01 )
 #define ENABLE_INDICATION                ( 0x02 )
-
-/**
- * @brief Number of characteristics, descriptors and included services for GATT sample service.
- */
-// #define gattDemoNUM_CHARS                ( 2 )
-// #define gattDemoNUM_CHAR_DESCRS          ( 1 )
-// #define gattDemoNUM_INCLUDED_SERVICES    ( 0 )
-
 
 /**
  * @brief Characteristics used by the GATT sample service.
@@ -187,10 +173,6 @@ BaseType_t xNotifyCounterUpdate = pdFALSE;
  */
 uint16_t usBLEConnectionID;
 
-
-// #define CHAR_HANDLE( svc, ch_idx )    ( ( svc )->pusHandlesBuffer[ ch_idx ] )
-// #define CHAR_UUID( svc, ch_idx )      ( ( svc )->pxBLEAttributes[ ch_idx ].xCharacteristic.xUuid )
-
 /**
  * @brief Callback to read request from a GATT client on the Counter value characteristic.
  * Returns the current counter value.
@@ -218,8 +200,6 @@ void vWriteCommand( IotBleAttributeEvent_t * pEventParam );
  */
 
 void vEnableNotification( IotBleAttributeEvent_t * pEventParam );
-
-// #if ( IOT_BLE_ADD_CUSTOM_SERVICES == 1 )
 
 // /**
 //  * @brief Task used to update the counter value periodically
@@ -249,9 +229,6 @@ static BaseType_t vGattDemoSvcHook( void );
 //  * @param[in] pxRemoteBdAddr Remote address of the BLE device which connected or disconnected
 //  */
 static void _connectionCallback( BTStatus_t xStatus,uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr );
-// #endif /* if ( IOT_BLE_ADD_CUSTOM_SERVICES == 1 ) */
-
-/* ---------------------------------------------------------------------------------------*/
 
 void IotBle_AddCustomServicesCb( void )
 {
@@ -280,61 +257,6 @@ int vGattDemoSvcInit()
     return status;
 }
 
-/*-----------------------------------------------------------*/
-
-// #if ( IOT_BLE_ADD_CUSTOM_SERVICES == 1 )
-
-//     void vCounterUpdateTaskFunction( void * pvParams )
-//     {
-//         uint32_t xBitsToWait = EVENT_BIT( eGattDemoStart ) | EVENT_BIT( eGattDemoStop ) | EVENT_BIT( eGattDemoReset );
-//         BaseType_t xStarted = pdFALSE;
-//         IotBleAttributeData_t xAttrData = { 0 };
-//         IotBleEventResponse_t xResp;
-//         uint32_t ulSetBits = 0;
-
-//         xAttrData.handle = CHAR_HANDLE( &xGattDemoService, egattDemoCharCounter );
-//         xAttrData.uuid = CHAR_UUID( &xGattDemoService, egattDemoCharCounter );
-//         xResp.pAttrData = &xAttrData;
-//         xResp.attrDataOffset = 0;
-//         xResp.eventStatus = eBTStatusSuccess;
-//         xResp.rspErrorStatus = eBTRspErrorNone;
-
-//         ( void ) pvParams;
-
-//         while( 1 )
-//         {
-//             ( void ) xTaskNotifyWait( xBitsToWait, 0, &ulSetBits, xCounterUpdateInterval );
-
-//             if( ulSetBits & EVENT_BIT( eGattDemoReset ) )
-//             {
-//                 ulCounter = 0;
-//             }
-//             else if( ulSetBits & EVENT_BIT( eGattDemoStart ) )
-//             {
-//                 xStarted = pdTRUE;
-//             }
-//             else if( ulSetBits & EVENT_BIT( eGattDemoStop ) )
-//             {
-//                 xStarted = pdFALSE;
-//             }
-
-//             if( xStarted == pdTRUE )
-//             {
-//                 ulCounter++;
-
-//                 if( xNotifyCounterUpdate == pdTRUE )
-//                 {
-//                     xAttrData.pData = ( uint8_t * ) &ulCounter;
-//                     xAttrData.size = sizeof( ulCounter );
-//                     ( void ) IotBle_SendIndication( &xResp, usBLEConnectionID, false );
-//                 }
-//             }
-//         }
-
-//         vTaskDelete( NULL );
-//     }
-
-// /*-----------------------------------------------------------*/
 
     static BaseType_t vGattDemoSvcHook( void )
     {
@@ -360,17 +282,6 @@ int vGattDemoSvcInit()
             }
         }
 
-        // if( xRet == pdTRUE )
-        // {
-        //     xRet = xTaskCreate(
-        //         vCounterUpdateTaskFunction,
-        //         "GattDemoCounterTask",
-        //         configMINIMAL_STACK_SIZE * 4,
-        //         NULL,
-        //         tskIDLE_PRIORITY,
-        //         &xCounterUpdateTask );
-        // }
-
         return xRet;
     }
 
@@ -384,12 +295,9 @@ int vGattDemoSvcInit()
             if( connId == usBLEConnectionID )
             {
                 IotLogInfo( " Disconnected from BLE device. Stopping the counter update \n" );
-                //vGattDemoSvcStop();
             }
         }
     }
-
-// #endif /* if ( IOT_BLE_ADD_CUSTOM_SERVICES == 1 ) */
 
 void vReadCounter( IotBleAttributeEvent_t * pEventParam )
 {
@@ -437,9 +345,6 @@ void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
 
         if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0xFF)
         {
-            // ucEvent = pxWriteParam->pValue[ 0 ];
-            // xTaskNotify( xCounterUpdateTask, EVENT_BIT( ucEvent ), eSetBits );
-
             ulCounter = 0;
             xResp.eventStatus = eBTStatusSuccess;
 
