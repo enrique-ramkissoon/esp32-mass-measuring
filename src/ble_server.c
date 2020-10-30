@@ -54,33 +54,16 @@
 #define ENABLE_NOTIFICATION              ( 0x01 )
 #define ENABLE_INDICATION                ( 0x02 )
 
-/**
- * @brief Characteristics used by the GATT sample service.
- */
-typedef enum
-{
-    egattDemoService = 0,      /**< SGatt demo service. */
-    egattDemoCharCounter,      /**< Keeps track of a counter value which is incremented periodically and optionally sent as notification to a GATT client */
-    egattDemoCharDescrCounter, /**< Client characteristic configuration descriptor used by the GATT client to enable notifications on Counter characteristic */
-    egattDemoCharControl,      /**< Accepts commands from a GATT client to stop/start/reset the counter value */
-    egattDemoNbAttributes
-} eGattDemoAttributes_t;
-
-/**
- * @brief Events generated for the commands sent from GATT client over Control characteristic
- */
 // typedef enum
 // {
-//     eGattDemoStart = 0, /**< Starts/resumes the counter value update. */
-//     eGattDemoStop = 1,  /**< Stops counter value update. Also stops sending notifications to GATT client if its already enabled. */
-//     eGattDemoReset = 2, /**< Resets the counter value to zero */
-// } GattDemoEvent_t;
+//     egattDemoService = 0,      /**< SGatt demo service. */
+//     egattDemoCharCounter,      /**< Keeps track of a counter value which is incremented periodically and optionally sent as notification to a GATT client */
+//     egattDemoCharDescrCounter, /**< Client characteristic configuration descriptor used by the GATT client to enable notifications on Counter characteristic */
+//     egattDemoCharControl,      /**< Accepts commands from a GATT client to stop/start/reset the counter value */
+//     egattDemoNbAttributes
+// } eGattDemoAttributes_t;
 
 #define EVENT_BIT( event )    ( ( uint32_t ) 0x1 << event )
-//////////////////////////////////////////////////////////////////////////////////////////////////////aws_ble_gatt_server_demo.h
-
-
-
 
 #define xServiceUUID_TYPE             \
     {                                 \
@@ -103,7 +86,9 @@ typedef enum
         .ucType = eBTuuidType16                  \
     }
 
-static uint16_t usHandlesBuffer[ egattDemoNbAttributes ];
+#define NUMBER_ATTRIBUTES 3
+
+static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES]; //remember to change .xNumberOfAttributes
 
 
 static const BTAttribute_t pxAttributeTable[] =
@@ -117,31 +102,31 @@ static const BTAttribute_t pxAttributeTable[] =
         {
             .xUuid        = xCharCounterUUID_TYPE,
             .xPermissions = ( IOT_BLE_CHAR_READ_PERM ),
-            .xProperties  = ( eBTPropRead | eBTPropNotify )
+            .xProperties  = ( eBTPropRead)
         }
     },
-    {
-        .xAttributeType = eBTDbDescriptor,
-        .xCharacteristicDescr =
-        {
-            .xUuid        = xClientCharCfgUUID_TYPE,
-            .xPermissions = ( IOT_BLE_CHAR_READ_PERM | IOT_BLE_CHAR_WRITE_PERM )
-        }
-    },
+    // {
+    //     .xAttributeType = eBTDbDescriptor,
+    //     .xCharacteristicDescr =
+    //     {
+    //         .xUuid        = xClientCharCfgUUID_TYPE,
+    //         .xPermissions = ( IOT_BLE_CHAR_READ_PERM | IOT_BLE_CHAR_WRITE_PERM )
+    //     }
+    // },
     {
         .xAttributeType = eBTDbCharacteristic,
         .xCharacteristic =
         {
             .xUuid        = xCharControlUUID_TYPE,
-            .xPermissions = ( IOT_BLE_CHAR_READ_PERM | IOT_BLE_CHAR_WRITE_PERM ),
-            .xProperties  = ( eBTPropRead | eBTPropWrite )
+            .xPermissions = (IOT_BLE_CHAR_WRITE_PERM ),
+            .xProperties  = (eBTPropWrite )
         }
     }
 };
 
 static const BTService_t xGattDemoService =
 {
-    .xNumberOfAttributes = egattDemoNbAttributes,
+    .xNumberOfAttributes = NUMBER_ATTRIBUTES,
     .ucInstId            = 0,
     .xType               = eBTServiceTypePrimary,
     .pusHandlesBuffer    = usHandlesBuffer,
@@ -149,19 +134,9 @@ static const BTService_t xGattDemoService =
 };
 
 /**
- * @brief Task used to update the counter periodically.
- */
-TaskHandle_t xCounterUpdateTask = NULL;
-
-/**
  * @brief Counter value.
  */
 uint32_t ulCounter = 0;
-
-/**
- * @brief Interval in Milliseconds to update the counter.
- */
-TickType_t xCounterUpdateInterval = pdMS_TO_TICKS( 1000 );
 
 /**
  * @brief Should send the counter update as a notification.
@@ -172,62 +147,11 @@ BaseType_t xNotifyCounterUpdate = pdFALSE;
  * @brief BLE connection ID to send the notification.
  */
 uint16_t usBLEConnectionID;
-
-/**
- * @brief Callback to read request from a GATT client on the Counter value characteristic.
- * Returns the current counter value.
- * @param[in] pxAttribute Attribute structure for the characteristic
- * @param pEventParam Event param for the read Request.
- */
 void vReadCounter( IotBleAttributeEvent_t * pEventParam );
-
-/**
- * @brief Callback to receive write request from a GATT client to set the counter status.
- *
- * Sets the event to start/stop/reset the counter update operation and sends back a response.
- *
- * @param pxAttribute
- * @param pEventParam
- */
 void vWriteCommand( IotBleAttributeEvent_t * pEventParam );
-
-/**
- * @brief Callback to enable notification when GATT client writes a value to the Client Characteristic
- * Configuration descriptor.
- *
- * @param pxAttribute  Attribute structure for the Client Characteristic Configuration Descriptor
- * @param pEventParam Write/Read event parametes
- */
-
-void vEnableNotification( IotBleAttributeEvent_t * pEventParam );
-
-// /**
-//  * @brief Task used to update the counter value periodically
-//  *
-//  * Sends a notification of counter update to GATT client if it has enabled notification via Client Characteristic
-//  * Configuration Descriptor. Also receives events from GATT client and starts/stops/resets counter update.
-//  *
-//  * @param pvParams NULL
-//  */
-// //     static void vCounterUpdateTaskFunction( void * pvParams );
-
-// // /**
-// //  * @brief Hook for an application's own custom services.
-// //  *
-// //  * @return pdTRUE on success creation of the custom services, pdFALSE otherwise.
-// //  */
+//void vEnableNotification( IotBleAttributeEvent_t * pEventParam );
 static BaseType_t vGattDemoSvcHook( void );
 
-// /**
-//  * @brief Callback for BLE connect/disconnect.
-//  *
-//  * Stops the Counter Update task on disconnection.
-//  *
-//  * @param[in] xStatus Status indicating result of connect/disconnect operation
-//  * @param[in] connId Connection Id for the connection
-//  * @param[in] bConnected true if connection, false if disconnection
-//  * @param[in] pxRemoteBdAddr Remote address of the BLE device which connected or disconnected
-//  */
 static void _connectionCallback( BTStatus_t xStatus,uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr );
 
 void IotBle_AddCustomServicesCb( void )
@@ -235,11 +159,11 @@ void IotBle_AddCustomServicesCb( void )
     vGattDemoSvcHook();
 }
 
-static const IotBleAttributeEventCallback_t pxCallBackArray[ egattDemoNbAttributes ] =
+static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
 {
     NULL,
     vReadCounter,
-    vEnableNotification,
+    //vEnableNotification,
     vWriteCommand
 };
 
@@ -258,46 +182,46 @@ int vGattDemoSvcInit()
 }
 
 
-    static BaseType_t vGattDemoSvcHook( void )
+static BaseType_t vGattDemoSvcHook( void )
+{
+    BaseType_t xRet = pdFALSE;
+    BTStatus_t xStatus;
+    IotBleEventsCallbacks_t xCallback;
+
+    /* Select the handle buffer. */
+    xStatus = IotBle_CreateService( ( BTService_t * ) &xGattDemoService, ( IotBleAttributeEventCallback_t * ) pxCallBackArray );
+
+    if( xStatus == eBTStatusSuccess )
     {
-        BaseType_t xRet = pdFALSE;
-        BTStatus_t xStatus;
-        IotBleEventsCallbacks_t xCallback;
-
-        /* Select the handle buffer. */
-        xStatus = IotBle_CreateService( ( BTService_t * ) &xGattDemoService, ( IotBleAttributeEventCallback_t * ) pxCallBackArray );
-
-        if( xStatus == eBTStatusSuccess )
-        {
-            xRet = pdTRUE;
-        }
-
-        if( xRet == pdTRUE )
-        {
-            xCallback.pConnectionCb = _connectionCallback;
-
-            if( IotBle_RegisterEventCb( eBLEConnection, xCallback ) != eBTStatusSuccess )
-            {
-                xRet = pdFAIL;
-            }
-        }
-
-        return xRet;
+        xRet = pdTRUE;
     }
 
-    static void _connectionCallback( BTStatus_t xStatus,
-                                     uint16_t connId,
-                                     bool bConnected,
-                                     BTBdaddr_t * pxRemoteBdAddr )
+    if( xRet == pdTRUE )
     {
-        if( ( xStatus == eBTStatusSuccess ) && ( bConnected == false ) )
+        xCallback.pConnectionCb = _connectionCallback;
+
+        if( IotBle_RegisterEventCb( eBLEConnection, xCallback ) != eBTStatusSuccess )
         {
-            if( connId == usBLEConnectionID )
-            {
-                IotLogInfo( " Disconnected from BLE device. Stopping the counter update \n" );
-            }
+            xRet = pdFAIL;
         }
     }
+
+    return xRet;
+}
+
+static void _connectionCallback( BTStatus_t xStatus,
+                                    uint16_t connId,
+                                    bool bConnected,
+                                    BTBdaddr_t * pxRemoteBdAddr )
+{
+    if( ( xStatus == eBTStatusSuccess ) && ( bConnected == false ) )
+    {
+        if( connId == usBLEConnectionID )
+        {
+            IotLogInfo( " Disconnected from BLE device.\n" );
+        }
+    }
+}
 
 void vReadCounter( IotBleAttributeEvent_t * pEventParam )
 {
@@ -362,50 +286,50 @@ void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
 
 /*-----------------------------------------------------------*/
 
-void vEnableNotification( IotBleAttributeEvent_t * pEventParam )
-{
-    IotBleWriteEventParams_t * pxWriteParam;
-    IotBleAttributeData_t xAttrData = { 0 };
-    IotBleEventResponse_t xResp;
-    uint16_t ucCCFGValue;
+// void vEnableNotification( IotBleAttributeEvent_t * pEventParam )
+// {
+//     IotBleWriteEventParams_t * pxWriteParam;
+//     IotBleAttributeData_t xAttrData = { 0 };
+//     IotBleEventResponse_t xResp;
+//     uint16_t ucCCFGValue;
 
 
-    xResp.pAttrData = &xAttrData;
-    xResp.rspErrorStatus = eBTRspErrorNone;
-    xResp.eventStatus = eBTStatusFail;
-    xResp.attrDataOffset = 0;
+//     xResp.pAttrData = &xAttrData;
+//     xResp.rspErrorStatus = eBTRspErrorNone;
+//     xResp.eventStatus = eBTStatusFail;
+//     xResp.attrDataOffset = 0;
 
-    if( ( pEventParam->xEventType == eBLEWrite ) || ( pEventParam->xEventType == eBLEWriteNoResponse ) )
-    {
-        pxWriteParam = pEventParam->pParamWrite;
+//     if( ( pEventParam->xEventType == eBLEWrite ) || ( pEventParam->xEventType == eBLEWriteNoResponse ) )
+//     {
+//         pxWriteParam = pEventParam->pParamWrite;
 
-        xResp.pAttrData->handle = pxWriteParam->attrHandle;
+//         xResp.pAttrData->handle = pxWriteParam->attrHandle;
 
-        if( pxWriteParam->length == 2 )
-        {
-            ucCCFGValue = ( pxWriteParam->pValue[ 1 ] << 8 ) | pxWriteParam->pValue[ 0 ];
+//         if( pxWriteParam->length == 2 )
+//         {
+//             ucCCFGValue = ( pxWriteParam->pValue[ 1 ] << 8 ) | pxWriteParam->pValue[ 0 ];
 
-            if( ucCCFGValue == ( uint16_t ) ENABLE_NOTIFICATION )
-            {
-                IotLogInfo( "Enabled Notification for Read Characteristic\n" );
-                xNotifyCounterUpdate = pdTRUE;
-                usBLEConnectionID = pxWriteParam->connId;
-            }
-            else if( ucCCFGValue == 0 )
-            {
-                xNotifyCounterUpdate = pdFALSE;
-            }
+//             if( ucCCFGValue == ( uint16_t ) ENABLE_NOTIFICATION )
+//             {
+//                 IotLogInfo("Enabled Notification for Read Characteristic\n");
+//                 xNotifyCounterUpdate = pdTRUE;
+//                 usBLEConnectionID = pxWriteParam->connId;
+//             }
+//             else if( ucCCFGValue == 0 )
+//             {
+//                 xNotifyCounterUpdate = pdFALSE;
+//             }
 
-            xResp.eventStatus = eBTStatusSuccess;
-        }
+//             xResp.eventStatus = eBTStatusSuccess;
+//         }
 
-        if( pEventParam->xEventType == eBLEWrite )
-        {
-            xResp.pAttrData->pData = pxWriteParam->pValue;
-            xResp.pAttrData->size = pxWriteParam->length;
-            xResp.attrDataOffset = pxWriteParam->offset;
+//         if( pEventParam->xEventType == eBLEWrite )
+//         {
+//             xResp.pAttrData->pData = pxWriteParam->pValue;
+//             xResp.pAttrData->size = pxWriteParam->length;
+//             xResp.attrDataOffset = pxWriteParam->offset;
 
-            IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId );
-        }
-    }
-}
+//             IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId );
+//         }
+//     }
+// }
