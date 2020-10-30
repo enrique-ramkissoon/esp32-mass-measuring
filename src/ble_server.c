@@ -33,9 +33,6 @@
 #include "platform/iot_network.h"
 #include "ble_server.h"
 
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #include "FreeRTOS.h"
 #include "iot_config.h"
 #include "platform/iot_network.h"
@@ -53,15 +50,6 @@
  */
 #define ENABLE_NOTIFICATION              ( 0x01 )
 #define ENABLE_INDICATION                ( 0x02 )
-
-// typedef enum
-// {
-//     egattDemoService = 0,      /**< SGatt demo service. */
-//     egattDemoCharCounter,      /**< Keeps track of a counter value which is incremented periodically and optionally sent as notification to a GATT client */
-//     egattDemoCharDescrCounter, /**< Client characteristic configuration descriptor used by the GATT client to enable notifications on Counter characteristic */
-//     egattDemoCharControl,      /**< Accepts commands from a GATT client to stop/start/reset the counter value */
-//     egattDemoNbAttributes
-// } eGattDemoAttributes_t;
 
 #define EVENT_BIT( event )    ( ( uint32_t ) 0x1 << event )
 
@@ -88,7 +76,7 @@
 
 #define NUMBER_ATTRIBUTES 3
 
-static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES]; //remember to change .xNumberOfAttributes
+static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
 
 static const BTAttribute_t pxAttributeTable[] =
@@ -105,14 +93,6 @@ static const BTAttribute_t pxAttributeTable[] =
             .xProperties  = ( eBTPropRead)
         }
     },
-    // {
-    //     .xAttributeType = eBTDbDescriptor,
-    //     .xCharacteristicDescr =
-    //     {
-    //         .xUuid        = xClientCharCfgUUID_TYPE,
-    //         .xPermissions = ( IOT_BLE_CHAR_READ_PERM | IOT_BLE_CHAR_WRITE_PERM )
-    //     }
-    // },
     {
         .xAttributeType = eBTDbCharacteristic,
         .xCharacteristic =
@@ -139,17 +119,11 @@ static const BTService_t xGattDemoService =
 uint32_t ulCounter = 0;
 
 /**
- * @brief Should send the counter update as a notification.
- */
-BaseType_t xNotifyCounterUpdate = pdFALSE;
-
-/**
  * @brief BLE connection ID to send the notification.
  */
 uint16_t usBLEConnectionID;
 void vReadCounter( IotBleAttributeEvent_t * pEventParam );
 void vWriteCommand( IotBleAttributeEvent_t * pEventParam );
-//void vEnableNotification( IotBleAttributeEvent_t * pEventParam );
 static BaseType_t vGattDemoSvcHook( void );
 
 static void _connectionCallback( BTStatus_t xStatus,uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr );
@@ -163,7 +137,6 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
 {
     NULL,
     vReadCounter,
-    //vEnableNotification,
     vWriteCommand
 };
 
@@ -209,10 +182,7 @@ static BaseType_t vGattDemoSvcHook( void )
     return xRet;
 }
 
-static void _connectionCallback( BTStatus_t xStatus,
-                                    uint16_t connId,
-                                    bool bConnected,
-                                    BTBdaddr_t * pxRemoteBdAddr )
+static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr )
 {
     if( ( xStatus == eBTStatusSuccess ) && ( bConnected == false ) )
     {
@@ -248,8 +218,6 @@ void vReadCounter( IotBleAttributeEvent_t * pEventParam )
     }
 }
 
-/*-----------------------------------------------------------*/
-
 void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
 {
     IotBleWriteEventParams_t * pxWriteParam;
@@ -283,53 +251,3 @@ void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
         }
     }
 }
-
-/*-----------------------------------------------------------*/
-
-// void vEnableNotification( IotBleAttributeEvent_t * pEventParam )
-// {
-//     IotBleWriteEventParams_t * pxWriteParam;
-//     IotBleAttributeData_t xAttrData = { 0 };
-//     IotBleEventResponse_t xResp;
-//     uint16_t ucCCFGValue;
-
-
-//     xResp.pAttrData = &xAttrData;
-//     xResp.rspErrorStatus = eBTRspErrorNone;
-//     xResp.eventStatus = eBTStatusFail;
-//     xResp.attrDataOffset = 0;
-
-//     if( ( pEventParam->xEventType == eBLEWrite ) || ( pEventParam->xEventType == eBLEWriteNoResponse ) )
-//     {
-//         pxWriteParam = pEventParam->pParamWrite;
-
-//         xResp.pAttrData->handle = pxWriteParam->attrHandle;
-
-//         if( pxWriteParam->length == 2 )
-//         {
-//             ucCCFGValue = ( pxWriteParam->pValue[ 1 ] << 8 ) | pxWriteParam->pValue[ 0 ];
-
-//             if( ucCCFGValue == ( uint16_t ) ENABLE_NOTIFICATION )
-//             {
-//                 IotLogInfo("Enabled Notification for Read Characteristic\n");
-//                 xNotifyCounterUpdate = pdTRUE;
-//                 usBLEConnectionID = pxWriteParam->connId;
-//             }
-//             else if( ucCCFGValue == 0 )
-//             {
-//                 xNotifyCounterUpdate = pdFALSE;
-//             }
-
-//             xResp.eventStatus = eBTStatusSuccess;
-//         }
-
-//         if( pEventParam->xEventType == eBLEWrite )
-//         {
-//             xResp.pAttrData->pData = pxWriteParam->pValue;
-//             xResp.pAttrData->size = pxWriteParam->length;
-//             xResp.attrDataOffset = pxWriteParam->offset;
-
-//             IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId );
-//         }
-//     }
-// }
