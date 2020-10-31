@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 3.13)
 project(esp32MassMeasure)
 
 add_executable(massMeasure  src/main.c
-                            src/hx711_driver.c)
+                            src/hx711_driver.c
+                            src/ble_server.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE massMeasure)
@@ -22,3 +23,8 @@ add_subdirectory(amazon-freertos)
 # linked.
 target_link_libraries(massMeasure PRIVATE AFR::demo_mqtt)
 target_link_libraries(massMeasure PRIVATE AFR::demo_ble_numeric_comparison)
+#target_link_libraries(massMeasure PRIVATE AFR::demo_ble)
+target_link_libraries(massMeasure PRIVATE AFR::ble)
+target_link_libraries(massMeasure PRIVATE AFR::ble_hal)
+target_link_libraries(massMeasure PRIVATE AFR::ble_wifi_provisioning)
+
