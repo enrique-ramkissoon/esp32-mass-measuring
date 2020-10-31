@@ -62,6 +62,7 @@
 #endif
 
 #include "ble_server.h"
+#include "hx711_driver.h"
 
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
@@ -170,6 +171,7 @@ int app_main( void )
         };
 
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,&context,5,NULL);
+        initialize_hx711();
     }
 
     return 0;

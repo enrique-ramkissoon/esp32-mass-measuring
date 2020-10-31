@@ -115,7 +115,7 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
-
+//TODO: Try to remove this task
 int vGattDemoSvcInit()
 {
     int status = EXIT_SUCCESS;
@@ -123,7 +123,7 @@ int vGattDemoSvcInit()
 
     while( 1 )
     {
-        vTaskDelay( 1000 );
+        vTaskDelay( 10000 );
     }
 
     return status;
