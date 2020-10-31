@@ -97,8 +97,8 @@ uint32_t ulCounter = 0;
  * @brief BLE connection ID to send the notification.
  */
 uint16_t usBLEConnectionID;
-void vReadCounter( IotBleAttributeEvent_t * pEventParam );
-void vWriteCommand( IotBleAttributeEvent_t * pEventParam );
+void read_attribute( IotBleAttributeEvent_t * pEventParam );
+void write_attribute( IotBleAttributeEvent_t * pEventParam );
 static BaseType_t vGattDemoSvcHook( void );
 
 static void _connectionCallback( BTStatus_t xStatus,uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr );
@@ -111,8 +111,8 @@ void IotBle_AddCustomServicesCb( void )
 static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
 {
     NULL,
-    vReadCounter,
-    vWriteCommand
+    read_attribute,
+    write_attribute
 };
 
 
@@ -168,7 +168,7 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
     }
 }
 
-void vReadCounter( IotBleAttributeEvent_t * pEventParam )
+void read_attribute(IotBleAttributeEvent_t * pEventParam )
 {
     IotBleReadEventParams_t * pxReadParam;
     IotBleAttributeData_t xAttrData = { 0 };
@@ -193,7 +193,7 @@ void vReadCounter( IotBleAttributeEvent_t * pEventParam )
     }
 }
 
-void vWriteCommand( IotBleAttributeEvent_t * pEventParam )
+void write_attribute(IotBleAttributeEvent_t * pEventParam )
 {
     IotBleWriteEventParams_t * pxWriteParam;
     IotBleAttributeData_t xAttrData = { 0 };

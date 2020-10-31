@@ -70,11 +70,6 @@
 
 QueueHandle_t spp_uart_queue = NULL;
 
-/* Static arrays for FreeRTOS+TCP stack initialization for Ethernet network connections
- * are use are below. If you are using an Ethernet connection on your MCU device it is
- * recommended to use the FreeRTOS+TCP stack. The default values are defined in
- * FreeRTOSConfig.h. */
-
 /**
  * @brief Initializes the board.
  */
