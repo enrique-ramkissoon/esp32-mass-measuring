@@ -12,6 +12,8 @@
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
+#include "ble_server.h"
+
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
 #define gattDemoSVC_UUID                 { 0x00, 0xFF, 0x69, 0xD6, 0xC6, 0xBF, 0x14, 0x90, 0x25, 0x41, 0xE7, 0x49, 0xE3, 0xD9, 0xF2, 0xC6 }
@@ -50,6 +52,7 @@
     }
 
 #define NUMBER_ATTRIBUTES 3
+#define MAX_PAYLOAD_LENGTH 100
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
@@ -88,10 +91,7 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
-/**
- * @brief Counter value.
- */
-uint32_t ulCounter = 0;
+char payload[MAX_PAYLOAD_LENGTH];
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -115,15 +115,28 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
-//TODO: Try to remove this task
-int vGattDemoSvcInit()
+int compile_payload(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
 
-
-    while( 1 )
+    while(true)
     {
-        vTaskDelay( 10000 );
+        uint32_t adc_out_32 = -1;
+
+        if(uxQueueMessagesWaiting(*(data_queues.adc_out_queue)) > 0)
+        {
+            xQueueReceive(*(data_queues.adc_out_queue),&adc_out_32,pdMS_TO_TICKS(50));
+        }
+        else
+        {
+            configPRINTF(("ADC Queue is empty!\n"));
+        }
+        
+        snprintf(payload,MAX_PAYLOAD_LENGTH,"%d",adc_out_32);
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+
     }
 
     return status;
@@ -163,7 +176,7 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
     {
         if( connId == usBLEConnectionID )
         {
-            IotLogInfo( " Disconnected from BLE device.\n" );
+            IotLogInfo("Disconnected from BLE device.\n");
         }
     }
 }
@@ -181,12 +194,10 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
 
     if( pEventParam->xEventType == eBLERead )
     {
-        ulCounter+=1; //ADDED THIS LINE TO INCREMENT ON EACH READ
-
         pxReadParam = pEventParam->pParamRead;
         xResp.pAttrData->handle = pxReadParam->attrHandle;
-        xResp.pAttrData->pData = ( uint8_t * ) &ulCounter;
-        xResp.pAttrData->size = sizeof( ulCounter );
+        xResp.pAttrData->pData = ( uint8_t * ) payload;
+        xResp.pAttrData->size = MAX_PAYLOAD_LENGTH;
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
         IotBle_SendResponse( &xResp, pxReadParam->connId, pxReadParam->transId );
@@ -198,7 +209,6 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
     IotBleWriteEventParams_t * pxWriteParam;
     IotBleAttributeData_t xAttrData = { 0 };
     IotBleEventResponse_t xResp;
-    uint8_t ucEvent;
 
     xResp.pAttrData = &xAttrData;
     xResp.rspErrorStatus = eBTRspErrorNone;
@@ -212,7 +222,6 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
         if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0xFF)
         {
-            ulCounter = 0;
             xResp.eventStatus = eBTStatusSuccess;
 
         }
@@ -222,7 +231,7 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = pxWriteParam->pValue;
             xResp.attrDataOffset = pxWriteParam->offset;
             xResp.pAttrData->size = pxWriteParam->length;
-            IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId );
+            IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId ); //TODO: Use this to send an acknowledgement of write. Remember to give the attribute Read perms.
         }
     }
 }

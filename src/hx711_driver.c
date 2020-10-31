@@ -12,7 +12,7 @@ gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
 
-void initialize_hx711()
+void initialize_hx711(QueueHandle_t* adc_queue)
 {
     gpio_config_t sck_config; 
 
@@ -40,7 +40,7 @@ void initialize_hx711()
     gpio_config(&dt_config);
 
     //TODO: Calculate a proper stack allocation
-    xTaskCreate(mass_read_task,"MassRead",20000,NULL,configMAX_PRIORITIES -1,NULL);
+    xTaskCreate(mass_read_task,"MassRead",20000,(void*)adc_queue,configMAX_PRIORITIES -1,NULL);
 
 }
 
@@ -56,10 +56,12 @@ void mass_read_task(void* pvParameters)
     {
         if(gpio_get_level(GPIO_INPUT_DT) == 0)
         {
-            double weight = get_weight();
+            int32_t adc_out = get_adc_out_32();
+
+            xQueueOverwrite(*((QueueHandle_t*)(pvParameters)) , (void*)(&adc_out));
+            double weight = get_weight(adc_out);
         
             configPRINTF(("Absolute Weight /g = %f \t Tared Weight = %f\n",weight,weight-TARE));
-            
         }
 
 
@@ -67,7 +69,7 @@ void mass_read_task(void* pvParameters)
     }
 }
 
-double get_weight()
+int32_t get_adc_out_32()
 {
     //Once DT goes low, ADC output is ready.
 
@@ -107,10 +109,14 @@ double get_weight()
 
     int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
     configPRINTF(("Result= %i\n",result32));
+    return result32;
+}
 
+double get_weight(int32_t result32)
+{
     //Range of ADC Values = 23 ones = 8388607
-    //Range of Differential input = 0.5*(Vdd/Gain) = 0.5*(3.3/128) = 12.891
-    portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891;
+    //Range of Differential input = 0.5*(Vdd/Gain) = 0.5*(3.3/128) = 12.891mV
+    portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891; //in V
     configPRINTF(("Vin = %f\n",Vin));
 
     //3.3mV => 10kg
@@ -130,7 +136,8 @@ void tare(int iterations)
             vTaskDelay(pdMS_TO_TICKS(125));
         }
 
-        total += get_weight();
+        int32_t result = get_adc_out_32();
+        total += get_weight(result);
     }
 
     TARE = (total/iterations);
