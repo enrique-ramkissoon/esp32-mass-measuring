@@ -5,6 +5,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
 
 /* Demo includes */
 #include "aws_demo.h"
@@ -25,7 +26,6 @@
 #include "iot_network_manager_private.h"
 #include "platform/iot_threads.h"
 #include "aws_demo.h"
-#include "iot_init.h"
 
 #include "nvs_flash.h"
 #if !AFR_ESP_LWIP
@@ -37,6 +37,7 @@
 #include "esp_wifi.h"
 #include "esp_interface.h"
 #include "esp_bt.h"
+
 #if CONFIG_NIMBLE_ENABLED == 1
     #include "esp_nimble_hci.h"
 #else
@@ -63,6 +64,8 @@
 
 #include "ble_server.h"
 #include "hx711_driver.h"
+#include "main_util.h"
+
 
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )
@@ -71,9 +74,9 @@
 
 QueueHandle_t spp_uart_queue = NULL;
 
-/**
- * @brief Initializes the board.
- */
+//Holds ADC values
+QueueHandle_t adc_queue;
+
 static void prvMiscInitialization( void );
 
 #if BLE_ENABLED
@@ -132,7 +135,12 @@ void ble_task(void* pvParameters)
 
     _initialize(pContext);
 
-    compile_payload();
+    struct Data_Queues data_queues;
+
+    adc_queue = xQueueCreate(2,sizeof(int32_t));
+    data_queues.adc_out_queue = &adc_queue;
+
+    compile_payload(data_queues);
 }
 
 int app_main( void )
@@ -171,7 +179,7 @@ int app_main( void )
         };
 
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,&context,5,NULL);
-        initialize_hx711();
+        initialize_hx711(&adc_queue);
     }
 
     return 0;

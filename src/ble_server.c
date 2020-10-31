@@ -12,6 +12,8 @@
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
+#include "ble_server.h"
+
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
 #define gattDemoSVC_UUID                 { 0x00, 0xFF, 0x69, 0xD6, 0xC6, 0xBF, 0x14, 0x90, 0x25, 0x41, 0xE7, 0x49, 0xE3, 0xD9, 0xF2, 0xC6 }
@@ -112,7 +114,7 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
-int compile_payload()
+int compile_payload(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
 
