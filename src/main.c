@@ -117,33 +117,6 @@ static int _initialize( demoContext_t * pContext )
         }
     }
 
-    // if( status == EXIT_SUCCESS )
-    // {
-    //     /* Create semaphore to signal that a network is available for the demo. */
-    //     if( IotSemaphore_Create( &demoNetworkSemaphore, 0, 1 ) != true )
-    //     {
-    //         IotLogError( "Failed to create semaphore to wait for a network connection." );
-    //         status = EXIT_FAILURE;
-    //     }
-    //     else
-    //     {
-    //         semaphoreCreated = true;
-    //     }
-    // }
-
-    // if( status == EXIT_SUCCESS )
-    // {
-    //     /* Subscribe for network state change from Network Manager. */
-    //     // if( AwsIotNetworkManager_SubscribeForStateChange( pContext->networkTypes,
-    //     //                                                   _onNetworkStateChangeCallback,
-    //     //                                                   pContext,
-    //     //                                                   &subscription ) != pdTRUE )
-    //     {
-    //         IotLogError( "Failed to subscribe network state change callback." );
-    //         status = EXIT_FAILURE;
-    //     }
-    // }
-
     /* Initialize all the  networks configured for the device. */
     if( status == EXIT_SUCCESS )
     {
@@ -153,32 +126,6 @@ static int _initialize( demoContext_t * pContext )
             status = EXIT_FAILURE;
         }
     }
-
-    // if( status == EXIT_SUCCESS )
-    // {
-    //     /* Wait for network configured for the demo to be initialized. */
-    //     demoConnectedNetwork = _getConnectedNetworkForDemo( pContext );
-
-    //     if( demoConnectedNetwork == AWSIOT_NETWORK_TYPE_NONE )
-    //     {
-    //         /* Network not yet initialized. Block for a network to be initialized. */
-    //         IotLogInfo( "No networks connected for the demo. Waiting for a network connection. " );
-    //         demoConnectedNetwork = _waitForDemoNetworkConnection( pContext );
-    //     }
-    // }
-
-    // if( status == EXIT_FAILURE )
-    // {
-    //     if( semaphoreCreated == true )
-    //     {
-    //         IotSemaphore_Destroy( &demoNetworkSemaphore );
-    //     }
-
-    //     if( commonLibrariesInitialized == true )
-    //     {
-    //         IotSdk_Cleanup();
-    //     }
-    // }
 
     return status;
 }
@@ -192,21 +139,14 @@ void ble_task(void* pvParameters)
     vGattDemoSvcInit();
 }
 
-/**
- * @brief Application runtime entry point.
- */
 int app_main( void )
 {
-    /* Perform any hardware initialization that does not require the RTOS to be
-     * running.  */
+    // Perform any hardware initialization that does not require the RTOS to be running.
 
     prvMiscInitialization();
 
     if( SYSTEM_Init() == pdPASS )
     {
-        /* A simple example to demonstrate key and certificate provisioning in
-         * microcontroller flash using PKCS#11 interface. This should be replaced
-         * by production ready key provisioning mechanism. */
         vDevModeKeyProvisioning();
 
         #if BLE_ENABLED
@@ -237,11 +177,6 @@ int app_main( void )
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,&context,5,NULL);
     }
 
-    /* Start the scheduler.  Initialization that requires the OS to be running,
-     * including the WiFi initialization, is performed in the RTOS daemon task
-     * startup hook. */
-    /* Following is taken care by initialization code in ESP IDF */
-    /* vTaskStartScheduler(); */
     return 0;
 }
 
