@@ -132,7 +132,7 @@ void ble_task(void* pvParameters)
 
     _initialize(pContext);
 
-    vGattDemoSvcInit();
+    compile_payload();
 }
 
 int app_main( void )
@@ -165,7 +165,7 @@ int app_main( void )
         static demoContext_t context =
         {
             .networkTypes                = AWSIOT_NETWORK_TYPE_BLE,
-            .demoFunction                = vGattDemoSvcInit,
+            .demoFunction                = NULL,
             .networkConnectedCallback    = NULL,
             .networkDisconnectedCallback = NULL
         };

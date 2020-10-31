@@ -88,10 +88,7 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
-/**
- * @brief Counter value.
- */
-uint32_t ulCounter = 0;
+int32_t ulCounter = 0;
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -115,13 +112,12 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
-//TODO: Try to remove this task
-int vGattDemoSvcInit()
+int compile_payload()
 {
     int status = EXIT_SUCCESS;
 
 
-    while( 1 )
+    while(true)
     {
         vTaskDelay( 10000 );
     }
@@ -163,7 +159,7 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
     {
         if( connId == usBLEConnectionID )
         {
-            IotLogInfo( " Disconnected from BLE device.\n" );
+            IotLogInfo("Disconnected from BLE device.\n");
         }
     }
 }
@@ -198,7 +194,6 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
     IotBleWriteEventParams_t * pxWriteParam;
     IotBleAttributeData_t xAttrData = { 0 };
     IotBleEventResponse_t xResp;
-    uint8_t ucEvent;
 
     xResp.pAttrData = &xAttrData;
     xResp.rspErrorStatus = eBTRspErrorNone;
