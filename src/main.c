@@ -90,7 +90,7 @@ static void prvMiscInitialization( void );
 /*-----------------------------------------------------------*/
 
 
-static int _initialize( demoContext_t * pContext )
+static int _initialize()
 {
     int status = EXIT_SUCCESS;
     bool commonLibrariesInitialized = false;
@@ -131,9 +131,8 @@ static int _initialize( demoContext_t * pContext )
 
 void ble_task(void* pvParameters)
 {
-    demoContext_t* pContext = (demoContext_t *)pvParameters;
 
-    _initialize(pContext);
+    _initialize();
 
     struct Data_Queues data_queues;
 
@@ -170,15 +169,7 @@ int app_main( void )
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
         #endif /* if BLE_ENABLED */
 
-        static demoContext_t context =
-        {
-            .networkTypes                = AWSIOT_NETWORK_TYPE_BLE,
-            .demoFunction                = NULL,
-            .networkConnectedCallback    = NULL,
-            .networkDisconnectedCallback = NULL
-        };
-
-        xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,&context,5,NULL);
+        xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,NULL,5,NULL);
         initialize_hx711(&adc_queue);
     }
 
