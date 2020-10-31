@@ -91,7 +91,6 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
-int32_t ulCounter = 0;
 char payload[MAX_PAYLOAD_LENGTH];
 
 /**
@@ -195,11 +194,8 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
 
     if( pEventParam->xEventType == eBLERead )
     {
-        ulCounter+=1; //ADDED THIS LINE TO INCREMENT ON EACH READ
-
         pxReadParam = pEventParam->pParamRead;
         xResp.pAttrData->handle = pxReadParam->attrHandle;
-        //xResp.pAttrData->pData = ( uint8_t * ) &ulCounter;
         xResp.pAttrData->pData = ( uint8_t * ) payload;
         xResp.pAttrData->size = MAX_PAYLOAD_LENGTH;
         xResp.attrDataOffset = 0;
@@ -226,7 +222,6 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
         if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0xFF)
         {
-            ulCounter = 0;
             xResp.eventStatus = eBTStatusSuccess;
 
         }
@@ -236,7 +231,7 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = pxWriteParam->pValue;
             xResp.attrDataOffset = pxWriteParam->offset;
             xResp.pAttrData->size = pxWriteParam->length;
-            IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId );
+            IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId ); //TODO: Use this to send an acknowledgement of write. Remember to give the attribute Read perms.
         }
     }
 }
