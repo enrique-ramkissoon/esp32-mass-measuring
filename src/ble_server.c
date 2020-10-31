@@ -52,6 +52,7 @@
     }
 
 #define NUMBER_ATTRIBUTES 3
+#define MAX_PAYLOAD_LENGTH 100
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
@@ -91,6 +92,7 @@ static const BTService_t xGattDemoService =
 };
 
 int32_t ulCounter = 0;
+char payload[MAX_PAYLOAD_LENGTH];
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -118,10 +120,24 @@ int compile_payload(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
 
-
     while(true)
     {
-        vTaskDelay( 10000 );
+        uint32_t adc_out_32 = -1;
+
+        if(uxQueueMessagesWaiting(*(data_queues.adc_out_queue)) > 0)
+        {
+            xQueueReceive(*(data_queues.adc_out_queue),&adc_out_32,pdMS_TO_TICKS(50));
+        }
+        else
+        {
+            configPRINTF(("ADC Queue is empty!\n"));
+        }
+        
+        snprintf(payload,MAX_PAYLOAD_LENGTH,"%d",adc_out_32);
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+
     }
 
     return status;
@@ -183,8 +199,9 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
 
         pxReadParam = pEventParam->pParamRead;
         xResp.pAttrData->handle = pxReadParam->attrHandle;
-        xResp.pAttrData->pData = ( uint8_t * ) &ulCounter;
-        xResp.pAttrData->size = sizeof( ulCounter );
+        //xResp.pAttrData->pData = ( uint8_t * ) &ulCounter;
+        xResp.pAttrData->pData = ( uint8_t * ) payload;
+        xResp.pAttrData->size = MAX_PAYLOAD_LENGTH;
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
         IotBle_SendResponse( &xResp, pxReadParam->connId, pxReadParam->transId );

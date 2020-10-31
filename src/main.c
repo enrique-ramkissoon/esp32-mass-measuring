@@ -137,7 +137,7 @@ void ble_task(void* pvParameters)
 
     struct Data_Queues data_queues;
 
-    adc_queue = xQueueCreate(2,sizeof(int32_t));
+    adc_queue = xQueueCreate(1,sizeof(int32_t));
     data_queues.adc_out_queue = &adc_queue;
 
     compile_payload(data_queues);
