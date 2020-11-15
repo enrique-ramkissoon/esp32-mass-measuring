@@ -161,6 +161,8 @@ int compile_payload(struct Data_Queues data_queues)
         
         snprintf(payload,MAX_PAYLOAD_LENGTH,"%d",adc_out_32);
 
+
+        //Text Dump Payload Compilation
         configPRINTF(("QUeueCOunt3 %i\n", uxQueueMessagesWaiting(*(data_queues.logs_queue))));
 
         for(int i=logs_payload_filled;i<MAX_LOGS_PAYLOAD_LENGTH;i++)
