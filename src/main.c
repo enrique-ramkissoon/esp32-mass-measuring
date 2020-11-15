@@ -1,5 +1,6 @@
 
 #include "iot_config.h"
+#include "stdarg.h"
 
 /* FreeRTOS includes. */
 
@@ -34,6 +35,7 @@
 #endif
 
 #include "esp_system.h"
+#include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_interface.h"
 #include "esp_bt.h"
@@ -76,6 +78,9 @@ QueueHandle_t spp_uart_queue = NULL;
 
 //Holds ADC values
 QueueHandle_t adc_queue;
+
+//Queue to hold all printed characters
+QueueHandle_t log_queue;
 
 static void prvMiscInitialization( void );
 
@@ -142,10 +147,38 @@ void ble_task(void* pvParameters)
     compile_payload(data_queues);
 }
 
+int log_redirect(const char* format,va_list args)
+{
+    //printf("ECHO:\n");
+
+    char string_to_print[200];
+    memset(string_to_print,0x00,200);
+
+    vsprintf(string_to_print,format,args);
+
+    for(int i=0;i<200;i++)
+    {
+        if(uxQueueSpacesAvailable(log_queue) >= 1)
+        {
+            uint8_t to_queue;
+            to_queue = string_to_print[i];
+
+            //printf("Queueing %c\n",to_queue);
+            xQueueSend(log_queue,(void*)(&to_queue),pdMS_TO_TICKS(50));
+        }
+
+        if(string_to_print[i] == 0x00 && string_to_print[i+1] == 0x00)
+        {
+            break;
+        }
+    }
+
+    return vprintf(format,args);
+}
+
 int app_main( void )
 {
     // Perform any hardware initialization that does not require the RTOS to be running.
-
     prvMiscInitialization();
 
     if( SYSTEM_Init() == pdPASS )
@@ -168,6 +201,25 @@ int app_main( void )
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_CLASSIC_BT ) );
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
         #endif /* if BLE_ENABLED */
+
+        log_queue = xQueueCreate(20000,sizeof(uint8_t));
+
+        esp_log_set_vprintf(&log_redirect);
+
+        ESP_LOGI("test","TestPrint1\n");
+
+        for(int i=0;i<=50;i++)
+        {
+            uint8_t next;
+
+            if(uxQueueMessagesWaiting(log_queue)>=1)
+            {
+                //configPRINTF(("rECEIVING\n"));
+                xQueueReceive(log_queue,(void*)(&next),pdMS_TO_TICKS(50));
+            }
+
+            printf("%c\n",next);
+        }
 
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,NULL,5,NULL);
         initialize_hx711(&adc_queue);
