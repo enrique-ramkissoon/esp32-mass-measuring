@@ -144,6 +144,11 @@ void ble_task(void* pvParameters)
     adc_queue = xQueueCreate(1,sizeof(int32_t));
     data_queues.adc_out_queue = &adc_queue;
 
+    data_queues.logs_queue = &log_queue;
+
+    configPRINTF(("QUeueCOunt 1 %i\n", uxQueueMessagesWaiting(*(data_queues.logs_queue))));
+
+
     compile_payload(data_queues);
 }
 
@@ -164,7 +169,12 @@ int log_redirect(const char* format,va_list args)
             to_queue = string_to_print[i];
 
             //printf("Queueing %c\n",to_queue);
-            xQueueSend(log_queue,(void*)(&to_queue),pdMS_TO_TICKS(50));
+
+            //If the next character is a letter, number, standard symbol, new line or null terminator, then queue
+            if((to_queue >=32 && to_queue<=126) || (to_queue == 0x00) || (to_queue == 10))
+            {
+                xQueueSend(log_queue,(void*)(&to_queue),pdMS_TO_TICKS(50));
+            }
         }
 
         if(string_to_print[i] == 0x00 && string_to_print[i+1] == 0x00)
@@ -202,24 +212,24 @@ int app_main( void )
             ESP_ERROR_CHECK( esp_bt_controller_mem_release( ESP_BT_MODE_BLE ) );
         #endif /* if BLE_ENABLED */
 
-        log_queue = xQueueCreate(20000,sizeof(uint8_t));
+        log_queue = xQueueCreate(2000,sizeof(uint8_t));
 
         esp_log_set_vprintf(&log_redirect);
 
         ESP_LOGI("test","TestPrint1\n");
 
-        for(int i=0;i<=50;i++)
-        {
-            uint8_t next;
+    
+        // for(int i=0;i<2000;i++)
+        // {
+        //     uint8_t next;
 
-            if(uxQueueMessagesWaiting(log_queue)>=1)
-            {
-                //configPRINTF(("rECEIVING\n"));
-                xQueueReceive(log_queue,(void*)(&next),pdMS_TO_TICKS(50));
-            }
-
-            printf("%c\n",next);
-        }
+        //     if(uxQueueMessagesWaiting(log_queue)>=1)
+        //     {
+        //         configPRINTF(("rECEIVING\n"));
+        //         xQueueReceive(log_queue,(void*)(&next),pdMS_TO_TICKS(50));
+        //         printf("%c\n",next);
+        //     }
+        // }
 
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,NULL,5,NULL);
         initialize_hx711(&adc_queue);

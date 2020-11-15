@@ -20,6 +20,7 @@
 #define gattDemoCHAR_UUID_MASK           0x69, 0xD6, 0xC6, 0xBF, 0x14, 0x90, 0x25, 0x41, 0xE7, 0x49, 0xE3, 0xD9, 0xF2, 0xC6
 #define gattDemoCHAR_COUNTER_UUID        { 0x01, 0xFF, gattDemoCHAR_UUID_MASK }
 #define gattDemoCHAR_CONTROL_UUID        { 0x02, 0xFF, gattDemoCHAR_UUID_MASK }
+#define gattLOGS_READ_UUID               { 0x03, 0xFF, gattDemoCHAR_UUID_MASK }
 #define gattDemoCLIENT_CHAR_CFG_UUID     ( 0x2902 )
 
 /**
@@ -45,14 +46,20 @@
         .uu.uu128 = gattDemoCHAR_CONTROL_UUID, \
         .ucType = eBTuuidType128               \
     }
+#define xLogsReadUUID_TYPE                     \
+    {                                          \
+        .uu.uu128 = gattLOGS_READ_UUID,        \
+        .ucType = eBTuuidType128               \
+    }
 #define xClientCharCfgUUID_TYPE                  \
     {                                            \
         .uu.uu16 = gattDemoCLIENT_CHAR_CFG_UUID, \
         .ucType = eBTuuidType16                  \
     }
 
-#define NUMBER_ATTRIBUTES 3
+#define NUMBER_ATTRIBUTES 4
 #define MAX_PAYLOAD_LENGTH 15
+#define MAX_LOGS_PAYLOAD_LENGTH 2000
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
@@ -79,7 +86,17 @@ static const BTAttribute_t pxAttributeTable[] =
             .xPermissions = (IOT_BLE_CHAR_WRITE_PERM ),
             .xProperties  = (eBTPropWrite )
         }
+    },
+    {
+        .xAttributeType = eBTDbCharacteristic,
+        .xCharacteristic =
+        {
+            .xUuid        = xLogsReadUUID_TYPE,
+            .xPermissions = ( IOT_BLE_CHAR_READ_PERM ),
+            .xProperties  = ( eBTPropRead)
+        }
     }
+
 };
 
 static const BTService_t xGattDemoService =
@@ -91,7 +108,11 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
+
+QueueHandle_t* log_queue;
 char payload[MAX_PAYLOAD_LENGTH];
+char logs_payload[MAX_LOGS_PAYLOAD_LENGTH];
+int logs_payload_filled = 0;
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -99,6 +120,7 @@ char payload[MAX_PAYLOAD_LENGTH];
 uint16_t usBLEConnectionID;
 void read_attribute( IotBleAttributeEvent_t * pEventParam );
 void write_attribute( IotBleAttributeEvent_t * pEventParam );
+void logs_read_attribute( IotBleAttributeEvent_t * pEventParam );
 static BaseType_t vGattDemoSvcHook( void );
 
 static void _connectionCallback( BTStatus_t xStatus,uint16_t connId, bool bConnected,BTBdaddr_t * pxRemoteBdAddr );
@@ -112,12 +134,17 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
 {
     NULL,
     read_attribute,
-    write_attribute
+    write_attribute,
+    logs_read_attribute
 };
 
 int compile_payload(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
+
+    //log_queue = data_queues.logs_queue; //TODO: Figure out why this line causes the queue to show "empty" ?????
+
+    configPRINTF(("QUeueCOunt 2 %i\n", uxQueueMessagesWaiting(*(data_queues.logs_queue))));
 
     while(true)
     {
@@ -133,6 +160,37 @@ int compile_payload(struct Data_Queues data_queues)
         }
         
         snprintf(payload,MAX_PAYLOAD_LENGTH,"%d",adc_out_32);
+
+        configPRINTF(("QUeueCOunt3 %i\n", uxQueueMessagesWaiting(*(data_queues.logs_queue))));
+
+        for(int i=logs_payload_filled;i<MAX_LOGS_PAYLOAD_LENGTH;i++)
+        {
+            char next = 0x2D;
+
+            configPRINTF(("QUeueCount4 %i\n",uxQueueMessagesWaiting(*(data_queues.logs_queue))));
+
+            if(uxQueueMessagesWaiting(*(data_queues.logs_queue)) > 0 )
+            {
+                configPRINTF(("Receiving from logs queue\n"));
+                xQueueReceive(*(data_queues.logs_queue),(void*)(&next),pdMS_TO_TICKS(50));
+            }
+            else
+            {
+                configPRINTF(("Breaking out of logs for loop\n"));
+                break;
+            }
+            
+            //printf("TestPrintx %c\n",next);
+
+            logs_payload[logs_payload_filled] = next;
+            logs_payload_filled++;
+
+            if(logs_payload_filled == MAX_LOGS_PAYLOAD_LENGTH -1)
+            {
+                //TODO: Shift array left and write to end
+                logs_payload_filled = 0;
+            }
+        }
 
         vTaskDelay(pdMS_TO_TICKS(100));
 
@@ -181,6 +239,7 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
     }
 }
 
+//attribute function for reading adc data
 void read_attribute(IotBleAttributeEvent_t * pEventParam )
 {
     IotBleReadEventParams_t * pxReadParam;
@@ -233,5 +292,33 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->size = pxWriteParam->length;
             IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId ); //TODO: Use this to send an acknowledgement of write. Remember to give the attribute Read perms.
         }
+    }
+}
+
+void logs_read_attribute( IotBleAttributeEvent_t * pEventParam )
+{
+    IotBleReadEventParams_t * pxReadParam;
+    IotBleAttributeData_t xAttrData = { 0 };
+    IotBleEventResponse_t xResp;
+
+    xResp.pAttrData = &xAttrData;
+    xResp.rspErrorStatus = eBTRspErrorNone;
+    xResp.eventStatus = eBTStatusFail;
+    xResp.attrDataOffset = 0;
+
+    if( pEventParam->xEventType == eBLERead )
+    {
+        pxReadParam = pEventParam->pParamRead;
+        xResp.pAttrData->handle = pxReadParam->attrHandle;
+
+        configPRINTF(("READ\n"));
+
+        xResp.pAttrData->pData = ( uint8_t * ) logs_payload;
+        xResp.pAttrData->size = MAX_LOGS_PAYLOAD_LENGTH;
+
+
+        xResp.attrDataOffset = 0;
+        xResp.eventStatus = eBTStatusSuccess;
+        IotBle_SendResponse( &xResp, pxReadParam->connId, pxReadParam->transId );
     }
 }
