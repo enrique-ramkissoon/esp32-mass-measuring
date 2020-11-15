@@ -52,7 +52,7 @@
     }
 
 #define NUMBER_ATTRIBUTES 3
-#define MAX_PAYLOAD_LENGTH 100
+#define MAX_PAYLOAD_LENGTH 15
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
