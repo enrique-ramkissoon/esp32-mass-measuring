@@ -13,6 +13,7 @@
 #include "platform/iot_network.h"
 
 #include "ble_server.h"
+#include "sys/time.h" 
 
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
@@ -52,7 +53,7 @@
     }
 
 #define NUMBER_ATTRIBUTES 3
-#define MAX_PAYLOAD_LENGTH 15
+#define MAX_PAYLOAD_LENGTH 20
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
@@ -131,8 +132,15 @@ int compile_payload(struct Data_Queues data_queues)
         {
             configPRINTF(("ADC Queue is empty!\n"));
         }
+
+        //TODO: Move this to the mass reading and pass within struct to queue
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+        long int time_ms = time_us/1000;
         
-        snprintf(payload,MAX_PAYLOAD_LENGTH,"%d",adc_out_32);
+        snprintf(payload,MAX_PAYLOAD_LENGTH,"%d|%ld",adc_out_32,time_ms);
+        printf("%s\n",payload);
 
         vTaskDelay(pdMS_TO_TICKS(100));
 
