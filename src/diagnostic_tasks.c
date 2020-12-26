@@ -32,7 +32,7 @@ void adc_task(void* pvParameters)
         long int time_ms = time_us/1000;
         
         snprintf(adcarg.payload,adcarg.payload_size,"%d|%ld",adc_out_32,time_ms);
-        printf("adcout=%s\n",adcarg.payload);
+        //printf("adcout=%s\n",adcarg.payload);
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }
