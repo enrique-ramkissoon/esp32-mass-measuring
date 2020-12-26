@@ -13,7 +13,8 @@
 #include "platform/iot_network.h"
 
 #include "ble_server.h"
-#include "sys/time.h" 
+#include "diagnostic_tasks.h"
+//#include "sys/time.h" 
 
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
@@ -53,7 +54,6 @@
     }
 
 #define NUMBER_ATTRIBUTES 3
-#define MAX_PAYLOAD_LENGTH 20
 
 static uint16_t usHandlesBuffer[NUMBER_ATTRIBUTES];
 
@@ -92,7 +92,19 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
-char payload[MAX_PAYLOAD_LENGTH];
+#define ADC_PAYLOAD_LENGTH 20
+
+enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
+enum diagnostic_tasks selected = NONE;
+enum diagnostic_tasks active = NONE;
+char adc_payload[ADC_PAYLOAD_LENGTH];
+
+TaskHandle_t text_task_handle;
+TaskHandle_t adc_task_handle;
+TaskHandle_t state_task_handle;
+TaskHandle_t stats_task_handle;
+TaskHandle_t cmd_task_handle;
+TaskHandle_t net_task_handle;
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -116,35 +128,86 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
-int compile_payload(struct Data_Queues data_queues)
+void delete_active_task()
+{
+    printf("Deleting Tasks\n");
+    switch(active)
+    {
+        case TEXT:
+            vTaskDelete(text_task_handle);
+            break;
+        case ADC:
+            vTaskDelete(adc_task_handle);
+            break;
+        case STATE:
+            vTaskDelete(state_task_handle);
+            break;
+        case STATS:
+            vTaskDelete(stats_task_handle);
+            break;
+        case COMMAND:
+            vTaskDelete(cmd_task_handle);
+            break;
+        case NETWORK:
+            vTaskDelete(net_task_handle);
+            break;
+        default:
+            break;
+    }
+}
+
+int task_manager(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
 
+    struct adc_args adcarg;
+    adcarg.adc_queue = data_queues.adc_out_queue;
+    adcarg.payload = adc_payload;
+    adcarg.payload_size = ADC_PAYLOAD_LENGTH;
+
     while(true)
     {
-        uint32_t adc_out_32 = -1;
-
-        if(uxQueueMessagesWaiting(*(data_queues.adc_out_queue)) > 0)
+        //run selected task if not already running
+        if(active != selected)
         {
-            xQueueReceive(*(data_queues.adc_out_queue),&adc_out_32,pdMS_TO_TICKS(50));
-        }
-        else
-        {
-            configPRINTF(("ADC Queue is empty!\n"));
+            delete_active_task();
+            
+            switch(selected)
+            {
+                case ADC:
+                    configPRINTF(("testetttsttestet\n"));
+                    xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
+                    break;
+                default:
+                    break;
+
+            }
+
+            active = selected;
         }
 
-        //TODO: Move this to the mass reading and pass within struct to queue
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
-        long int time_ms = time_us/1000;
+        ///////////
+        // uint32_t adc_out_32 = -1;
+
+        // if(uxQueueMessagesWaiting(*(data_queues.adc_out_queue)) > 0)
+        // {
+        //     xQueueReceive(*(data_queues.adc_out_queue),&adc_out_32,pdMS_TO_TICKS(50));
+        // }
+        // else
+        // {
+        //     configPRINTF(("ADC Queue is empty!\n"));
+        // }
+
+        // //TODO: Move this to the mass reading and pass within struct to queue
+        // struct timeval now;
+        // gettimeofday(&now, NULL);
+        // int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+        // long int time_ms = time_us/1000;
         
-        snprintf(payload,MAX_PAYLOAD_LENGTH,"%d|%ld",adc_out_32,time_ms);
-        printf("%s\n",payload);
+        // snprintf(payload,MAX_PAYLOAD_LENGTH,"%d|%ld",adc_out_32,time_ms);
+        // printf("%s\n",payload);
 
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
     return status;
@@ -189,6 +252,7 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
     }
 }
 
+//this function is called when the device attempts to read from the attribute
 void read_attribute(IotBleAttributeEvent_t * pEventParam )
 {
     IotBleReadEventParams_t * pxReadParam;
@@ -204,14 +268,19 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
     {
         pxReadParam = pEventParam->pParamRead;
         xResp.pAttrData->handle = pxReadParam->attrHandle;
-        xResp.pAttrData->pData = ( uint8_t * ) payload;
-        xResp.pAttrData->size = MAX_PAYLOAD_LENGTH;
+        
+        if(active == ADC)
+        {
+            xResp.pAttrData->pData = ( uint8_t * ) adc_payload;
+            xResp.pAttrData->size = ADC_PAYLOAD_LENGTH;
+        }
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
         IotBle_SendResponse( &xResp, pxReadParam->connId, pxReadParam->transId );
     }
 }
 
+//this function is called when a value is placed into the attribute
 void write_attribute(IotBleAttributeEvent_t * pEventParam )
 {
     IotBleWriteEventParams_t * pxWriteParam;
@@ -228,10 +297,11 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         pxWriteParam = pEventParam->pParamWrite;
         xResp.pAttrData->handle = pxWriteParam->attrHandle;
 
-        if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0xFF)
+        if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x02)
         {
+            configPRINTF(("0X02 ENTERED. Starting ADC Task\n"));
+            selected = ADC;
             xResp.eventStatus = eBTStatusSuccess;
-
         }
 
         if( pEventParam->xEventType == eBLEWrite )
