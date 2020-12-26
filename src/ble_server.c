@@ -174,6 +174,9 @@ int task_manager(struct Data_Queues data_queues)
             
             switch(selected)
             {
+                case NONE:
+                    configPRINTF(("no diag selected\n"));
+                    break;
                 case ADC:
                     configPRINTF(("testetttsttestet\n"));
                     xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
@@ -297,12 +300,18 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         pxWriteParam = pEventParam->pParamWrite;
         xResp.pAttrData->handle = pxWriteParam->attrHandle;
 
-        if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x02)
+        if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x00)
+        {
+            configPRINTF(("0x00 ENTERED. Stopping all dianostic tasks\n"));
+            selected = NONE;
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x02)
         {
             configPRINTF(("0X02 ENTERED. Starting ADC Task\n"));
             selected = ADC;
-            xResp.eventStatus = eBTStatusSuccess;
         }
+
+        xResp.eventStatus = eBTStatusSuccess;
 
         if( pEventParam->xEventType == eBLEWrite )
         {
