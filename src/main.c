@@ -139,7 +139,9 @@ void ble_task(void* pvParameters)
     adc_queue = xQueueCreate(1,sizeof(int32_t));
     data_queues.adc_out_queue = &adc_queue;
 
-    compile_payload(data_queues);
+    data_queues.active_task = NULL;
+
+    task_manager(data_queues);
 }
 
 int app_main( void )

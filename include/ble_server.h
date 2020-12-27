@@ -2,7 +2,19 @@
 #define BLE_SERVER_H
 
 #include "main_util.h"
+#include "queue.h"
 
-int compile_payload(struct Data_Queues data_queues);
+enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
+
+int task_manager(struct Data_Queues data_queues);
+
+struct adc_args
+{
+    char* payload;
+    int payload_size;
+    QueueHandle_t* adc_queue;
+
+    enum diagnostic_tasks* active_task;
+};
 
 #endif
