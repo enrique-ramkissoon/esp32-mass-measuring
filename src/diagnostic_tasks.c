@@ -5,6 +5,7 @@
 #include "diagnostic_tasks.h"
 #include "ble_server.h"
 #include "sys/time.h"
+#include "stdio.h"
 
 void adc_task(void* pvParameters)
 {
@@ -34,5 +35,14 @@ void adc_task(void* pvParameters)
         //printf("adcout=%s\n",adcarg.payload);
 
         vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+void text_task(void* pvParameters)
+{
+    while(true)
+    {
+        configPRINTF(("TESTBLEPRINT\n"));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

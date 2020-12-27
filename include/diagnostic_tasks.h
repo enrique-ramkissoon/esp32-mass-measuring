@@ -2,5 +2,7 @@
 #define DIAGNOSTIC_TASKS_H
 
 void adc_task(void* pvParameters);
+void text_task(void* pvParameters);
+
 
 #endif

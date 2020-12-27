@@ -8,11 +8,22 @@ enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
 
 int task_manager(struct Data_Queues data_queues);
 
+int text_task_stdout_redirect(void* c,const char* data,int size);
+
 struct adc_args
 {
     char* payload;
     int payload_size;
     QueueHandle_t* adc_queue;
+
+    enum diagnostic_tasks* active_task;
+};
+
+struct text_args
+{
+    char* payload;
+    int payload_size;
+    QueueHandle_t* text_queue;
 
     enum diagnostic_tasks* active_task;
 };
