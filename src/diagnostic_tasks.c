@@ -10,8 +10,7 @@ void adc_task(void* pvParameters)
 {
     while(true)
     {
-        configPRINTF(("ADC_TASK_RUNNING\n"));
-
+        //configPRINTF(("Active:%d\n",*(((struct adc_args*)(pvParameters))->active_task) ));
         uint32_t adc_out_32 = -1;
 
         struct adc_args adcarg = *((struct adc_args*)(pvParameters));

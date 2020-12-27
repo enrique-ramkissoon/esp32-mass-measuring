@@ -94,7 +94,6 @@ static const BTService_t xGattDemoService =
 
 #define ADC_PAYLOAD_LENGTH 20
 
-enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
 enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
 char adc_payload[ADC_PAYLOAD_LENGTH];
@@ -160,10 +159,13 @@ int task_manager(struct Data_Queues data_queues)
 {
     int status = EXIT_SUCCESS;
 
+    data_queues.active_task = &active;
+
     struct adc_args adcarg;
     adcarg.adc_queue = data_queues.adc_out_queue;
     adcarg.payload = adc_payload;
     adcarg.payload_size = ADC_PAYLOAD_LENGTH;
+    adcarg.active_task = &active;
 
     while(true)
     {
@@ -178,7 +180,6 @@ int task_manager(struct Data_Queues data_queues)
                     configPRINTF(("no diag selected\n"));
                     break;
                 case ADC:
-                    configPRINTF(("testetttsttestet\n"));
                     xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
                     break;
                 default:
