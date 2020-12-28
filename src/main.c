@@ -62,10 +62,9 @@
     #include "iot_ble_numericComparison.h"
 #endif
 
-#include "ble_server.h"
 #include "hx711_driver.h"
 #include "main_util.h"
-
+#include "ble_server.h"
 
 /* Logging Task Defines. */
 #define mainLOGGING_MESSAGE_QUEUE_LENGTH    ( 32 )

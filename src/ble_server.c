@@ -146,7 +146,6 @@ void delete_active_task()
             fflush(stdout);
             fclose(stdout);
             stdout = fopen("/dev/uart/0", "w");
-            configPRINTF(("tESTwRITE2\n"));
             vTaskDelete(text_task_handle);
             break;
         case ADC:
