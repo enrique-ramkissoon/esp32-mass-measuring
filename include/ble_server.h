@@ -24,6 +24,7 @@ struct text_args
     char* payload;
     int payload_size;
     QueueHandle_t* text_queue;
+    bool* ack;
 
     enum diagnostic_tasks* active_task;
 };

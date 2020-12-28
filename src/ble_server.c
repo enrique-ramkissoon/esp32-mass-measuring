@@ -101,6 +101,7 @@ static const BTService_t xGattDemoService =
 #define MAX_TEXT_PAYLOAD_LENGTH 500
 
 QueueHandle_t logs_buffer;
+bool message_acknowledged = true;
 
 enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
@@ -173,28 +174,28 @@ void delete_active_task()
 
 int text_task_stdout_redirect(void* c,const char* data,int size)
 {
-    vTaskEnterCritical();
+    //fprintf(stderr,"String: %s\n",data); //fprintf of data reveals that data is terminated by 9 random characters.
+
     if(uxQueueSpacesAvailable(logs_buffer) < size)
     {
-        fprintf(stderr,"LOGS QUEUE FULL\n");
-        char discard = ' ';
+        fprintf(stderr,"%s LOGS QUEUE FULL %d\n",pcTaskGetName(NULL),uxQueueMessagesWaiting(logs_buffer));
+        return size;
+        // char discard = ' ';
 
-        for(int i=0;i<size-uxQueueSpacesAvailable(logs_buffer);i++)
-        {
-            xQueueReceive(logs_buffer,&discard,pdMS_TO_TICKS(1));
-        }
+        // for(int i=0;i<size-uxQueueSpacesAvailable(logs_buffer);i++)
+        // {
+        //     xQueueReceive(logs_buffer,&discard,pdMS_TO_TICKS(1));
+        // }
     }
 
-    for(int i=0;i<size;i++)
+    for(int i=0;i<size-9;i++)
     {
-        if(data[i] == 0)
-        {
-            continue;
-        }
 
-        xQueueSend(logs_buffer,&(data[i]),pdMS_TO_TICKS(1));
+        if((data[i] >=32 && data[i]<=126) || (data[i] == 0x00) || (data[i] == 10))
+        {
+            xQueueSend(logs_buffer,&(data[i]),pdMS_TO_TICKS(50));
+        }
     }
-    vTaskExitCritical();
 
     return size;
 }
@@ -210,8 +211,11 @@ int task_manager(struct Data_Queues* data_queues)
     adcarg.active_task = &active;
 
     struct text_args textarg;
+    message_acknowledged = true;
+    textarg.ack = &message_acknowledged;
     textarg.active_task = &active;
     textarg.payload = text_payload;
+    textarg.text_queue = &logs_buffer;
     textarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
 
     while(true)
@@ -325,28 +329,14 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         }
         else if(active == TEXT)
         {
-            for(int i=0;i<MAX_TEXT_PAYLOAD_LENGTH;i++)
+            if(message_acknowledged == false)
             {
-                text_payload[i] = 0;
+                text_payload[499] = (char)0;
+
+                fprintf(stderr,"Payload: %s",text_payload);
+                xResp.pAttrData->pData = ( uint8_t * ) text_payload;
+                xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
             }
-
-            for(int i=0;i<=498;i++)
-            {
-                if(uxQueueMessagesWaiting(logs_buffer) <= 0)
-                {
-                    fprintf(stderr,"LOGS QUEUE EMPTY\n"); //printing to stderr because stdout is redirected.
-                    break;
-                }
-                else
-                {
-                    xQueueReceive(logs_buffer,&(text_payload[i]),pdMS_TO_TICKS(1));   
-                }
-            }
-
-            text_payload[499] = (char)0;
-
-            xResp.pAttrData->pData = ( uint8_t * ) text_payload;
-            xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
         }
 
         xResp.attrDataOffset = 0;
@@ -381,6 +371,11 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             configPRINTF(("0X01 ENTERED. Starting TextDump Task\n"));
             selected = TEXT;
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x1F)
+        {
+            configPRINTF(("0x1F ENTERED. Message Acknowledged\n"));
+            message_acknowledged = true;
         }
         else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x02)
         {

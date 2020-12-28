@@ -6,6 +6,7 @@
 #include "ble_server.h"
 #include "sys/time.h"
 #include "stdio.h"
+#include "string.h"
 
 void adc_task(void* pvParameters)
 {
@@ -40,9 +41,32 @@ void adc_task(void* pvParameters)
 
 void text_task(void* pvParameters)
 {
+    struct text_args textarg = *((struct text_args*)(pvParameters));
     while(true)
     {
-        configPRINTF(("TESTBLEPRINT\n"));
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        if(*(textarg.ack) == true)
+        {
+            fprintf(stderr,"TextTask: loading next payload\n");
+
+            memset(textarg.payload,0,textarg.payload_size);
+
+            for(int i=0;i<=498;i++)
+            {
+                if(uxQueueMessagesWaiting(*(textarg.text_queue)) > 0)
+                {
+                    xQueueReceive(*(textarg.text_queue),&(textarg.payload[i]), pdMS_TO_TICKS(20));
+                }
+                else
+                {
+                    *(textarg.ack) = false;
+                    break;
+                }
+                
+            }
+
+            *(textarg.ack) = false;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
