@@ -42,7 +42,7 @@ void initialize_hx711(struct Data_Queues* data_queues)
     gpio_config(&dt_config);
 
     //TODO: Calculate a proper stack allocation
-    xTaskCreate(mass_read_task,"MassRead",20000,(void*)(data_queues),configMAX_PRIORITIES -1,NULL);
+    xTaskCreate(mass_read_task,"MassRead",10000,(void*)(data_queues),configMAX_PRIORITIES -1,NULL);
 
 }
 

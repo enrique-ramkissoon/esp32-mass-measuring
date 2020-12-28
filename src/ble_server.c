@@ -3,13 +3,15 @@
 #include "iot_demo_logging.h"
 #include "iot_ble_config.h"
 
+#include "string.h"
+
 #include "iot_ble.h"
 #include "stdio.h"
 #include "task.h"
+#include "queue.h"
 #include "semphr.h"
 #include "platform/iot_network.h"
 
-#include "FreeRTOS.h"
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
@@ -98,12 +100,13 @@ static const BTService_t xGattDemoService =
 #define ADC_PAYLOAD_LENGTH 20
 #define MAX_TEXT_PAYLOAD_LENGTH 500
 
+QueueHandle_t logs_buffer;
+
 enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
 
 char adc_payload[ADC_PAYLOAD_LENGTH];
 char text_payload[MAX_TEXT_PAYLOAD_LENGTH];
-int text_payload_filled = 0;
 
 //FILE* default_stdout = NULL;
 static char stdout_buf[128];
@@ -170,17 +173,28 @@ void delete_active_task()
 
 int text_task_stdout_redirect(void* c,const char* data,int size)
 {
-    for(int i=0;i<size;i++)
+    vTaskEnterCritical();
+    if(uxQueueSpacesAvailable(logs_buffer) < size)
     {
-        if(text_payload_filled+i >=500)
-        {
-            text_payload_filled = 0;
-        }
+        fprintf(stderr,"LOGS QUEUE FULL\n");
+        char discard = ' ';
 
-        text_payload[text_payload_filled+i] = data[i];
+        for(int i=0;i<size-uxQueueSpacesAvailable(logs_buffer);i++)
+        {
+            xQueueReceive(logs_buffer,&discard,pdMS_TO_TICKS(1));
+        }
     }
 
-    text_payload_filled+=(size-1);
+    for(int i=0;i<size;i++)
+    {
+        if(data[i] == 0)
+        {
+            continue;
+        }
+
+        xQueueSend(logs_buffer,&(data[i]),pdMS_TO_TICKS(1));
+    }
+    vTaskExitCritical();
 
     return size;
 }
@@ -216,6 +230,7 @@ int task_manager(struct Data_Queues* data_queues)
                     configPRINTF(("Starting Text Dump Task\n"));
                     configPRINTF(("Redirecting STDOUT\n"));
 
+                    logs_buffer = xQueueCreate(10000,sizeof(char));
                     //set default for redirecting back to uart0 after text dump page is closed
                     //default_stdout = stdout;
 
@@ -310,6 +325,26 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         }
         else if(active == TEXT)
         {
+            for(int i=0;i<MAX_TEXT_PAYLOAD_LENGTH;i++)
+            {
+                text_payload[i] = 0;
+            }
+
+            for(int i=0;i<=498;i++)
+            {
+                if(uxQueueMessagesWaiting(logs_buffer) <= 0)
+                {
+                    fprintf(stderr,"LOGS QUEUE EMPTY\n"); //printing to stderr because stdout is redirected.
+                    break;
+                }
+                else
+                {
+                    xQueueReceive(logs_buffer,&(text_payload[i]),pdMS_TO_TICKS(1));   
+                }
+            }
+
+            text_payload[499] = (char)0;
+
             xResp.pAttrData->pData = ( uint8_t * ) text_payload;
             xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
         }
@@ -339,7 +374,7 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
         if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x00)
         {
-            configPRINTF(("0x00 ENTERED. Stopping all dianostic tasks\n"));
+            configPRINTF(("0x00 ENTERED. Stopping all diagnostic tasks\n"));
             selected = NONE;
         }
         else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x01)
