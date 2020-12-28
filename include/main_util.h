@@ -6,7 +6,6 @@
 
 struct Data_Queues
 {
-    enum diagnostic_tasks* active_task;
     QueueHandle_t* adc_out_queue;
 };
 

@@ -74,6 +74,8 @@
 
 QueueHandle_t spp_uart_queue = NULL;
 
+
+struct Data_Queues data_queues;
 //Holds ADC values
 QueueHandle_t adc_queue;
 
@@ -134,14 +136,10 @@ void ble_task(void* pvParameters)
 
     _initialize();
 
-    struct Data_Queues data_queues;
-
     adc_queue = xQueueCreate(1,sizeof(int32_t));
     data_queues.adc_out_queue = &adc_queue;
 
-    data_queues.active_task = NULL;
-
-    task_manager(data_queues);
+    task_manager(&data_queues);
 }
 
 int app_main( void )
@@ -172,7 +170,7 @@ int app_main( void )
         #endif /* if BLE_ENABLED */
 
         xTaskCreate(ble_task,"bletask",configMINIMAL_STACK_SIZE*10,NULL,5,NULL);
-        initialize_hx711(&adc_queue);
+        initialize_hx711(&data_queues);
     }
 
     return 0;

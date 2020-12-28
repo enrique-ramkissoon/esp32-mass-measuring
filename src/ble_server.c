@@ -186,14 +186,12 @@ int text_task_stdout_redirect(void* c,const char* data,int size)
     return size;
 }
 
-int task_manager(struct Data_Queues data_queues)
+int task_manager(struct Data_Queues* data_queues)
 {
     int status = EXIT_SUCCESS;
 
-    data_queues.active_task = &active;
-
     struct adc_args adcarg;
-    adcarg.adc_queue = data_queues.adc_out_queue;
+    adcarg.adc_queue = data_queues->adc_out_queue;
     adcarg.payload = adc_payload;
     adcarg.payload_size = ADC_PAYLOAD_LENGTH;
     adcarg.active_task = &active;
