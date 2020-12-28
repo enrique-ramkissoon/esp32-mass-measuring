@@ -2,7 +2,6 @@
 #define MAIN_UTIL_H
 
 #include "queue.h"
-#include "ble_server.h"
 
 struct Data_Queues
 {

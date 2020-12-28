@@ -62,8 +62,8 @@
     #include "iot_ble_numericComparison.h"
 #endif
 
-#include "hx711_driver.h"
 #include "main_util.h"
+#include "hx711_driver.h"
 #include "ble_server.h"
 
 /* Logging Task Defines. */

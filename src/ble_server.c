@@ -8,12 +8,12 @@
 #include "task.h"
 #include "semphr.h"
 #include "platform/iot_network.h"
-#include "ble_server.h"
 
 #include "FreeRTOS.h"
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
+#include "main_util.h"
 #include "ble_server.h"
 #include "diagnostic_tasks.h"
 //#include "esp_vfs.h"

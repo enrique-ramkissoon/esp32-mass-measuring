@@ -3,6 +3,7 @@
 
 #include "hx711_driver.h"
 #include "main_util.h"
+#include "ble_server.h"
 #include <stdint.h>
 
 #include "driver/gpio.h"
