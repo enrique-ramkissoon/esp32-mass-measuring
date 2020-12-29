@@ -2,6 +2,8 @@
 #include "task.h"
 
 #include "hx711_driver.h"
+#include "main_util.h"
+#include "ble_server.h"
 #include <stdint.h>
 
 #include "driver/gpio.h"
@@ -12,7 +14,7 @@ gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
 
-void initialize_hx711(QueueHandle_t* adc_queue)
+void initialize_hx711(struct Data_Queues* data_queues)
 {
     gpio_config_t sck_config; 
 
@@ -40,12 +42,14 @@ void initialize_hx711(QueueHandle_t* adc_queue)
     gpio_config(&dt_config);
 
     //TODO: Calculate a proper stack allocation
-    xTaskCreate(mass_read_task,"MassRead",20000,(void*)adc_queue,configMAX_PRIORITIES -1,NULL);
+    xTaskCreate(mass_read_task,"MassRead",10000,(void*)(data_queues),configMAX_PRIORITIES -1,NULL);
 
 }
 
 void mass_read_task(void* pvParameters)
 {
+    bool stdout_uart = true; //true if stdout is currently directed to uart0
+
     //Give HX711 time to initialize
     vTaskDelay(pdMS_TO_TICKS(500));
 
@@ -54,11 +58,31 @@ void mass_read_task(void* pvParameters)
 
     while(true)
     {
+        //configPRINTF(("ActiveFromADC = %d\n",active));
+
+        if(active == TEXT && stdout_uart == true)
+        {
+            fflush(stdout);
+            fclose(stdout);
+            stdout = fwopen(NULL,&text_task_stdout_redirect); //redirect stdout to ble server
+
+            stdout_uart = false;
+        }
+        else if(active != TEXT && stdout_uart == false)
+        {
+            fflush(stdout);
+            fclose(stdout);
+            stdout = fopen("/dev/uart/0", "w"); //redirect stdout back to uart0
+
+            stdout_uart = true;
+        }
+        
+
         if(gpio_get_level(GPIO_INPUT_DT) == 0)
         {
             int32_t adc_out = get_adc_out_32();
 
-            xQueueOverwrite(*((QueueHandle_t*)(pvParameters)) , (void*)(&adc_out));
+            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_out));
             double weight = get_weight(adc_out);
         
             //configPRINTF(("Absolute Weight /g = %f \t Tared Weight = %f\n",weight,weight-TARE));
@@ -108,7 +132,7 @@ int32_t get_adc_out_32()
     taskEXIT_CRITICAL();
 
     int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
-    //configPRINTF(("Result= %i\n",result32));
+    configPRINTF(("Result= %i\n",result32));
     return result32;
 }
 

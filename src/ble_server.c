@@ -1,19 +1,24 @@
 #include "FreeRTOSConfig.h"
+#include "FreeRTOS.h"
 #include "iot_demo_logging.h"
 #include "iot_ble_config.h"
 
+#include "string.h"
+
 #include "iot_ble.h"
+#include "stdio.h"
 #include "task.h"
+#include "queue.h"
 #include "semphr.h"
 #include "platform/iot_network.h"
-#include "ble_server.h"
 
-#include "FreeRTOS.h"
 #include "iot_config.h"
 #include "platform/iot_network.h"
 
+#include "main_util.h"
 #include "ble_server.h"
 #include "diagnostic_tasks.h"
+//#include "esp_vfs.h"
 //#include "sys/time.h" 
 
 //GATT service, characteristics and descriptor UUIDs used by the sample.
@@ -93,10 +98,19 @@ static const BTService_t xGattDemoService =
 };
 
 #define ADC_PAYLOAD_LENGTH 20
+#define MAX_TEXT_PAYLOAD_LENGTH 500
+
+QueueHandle_t logs_buffer;
+bool message_acknowledged = true;
 
 enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
+
 char adc_payload[ADC_PAYLOAD_LENGTH];
+char text_payload[MAX_TEXT_PAYLOAD_LENGTH];
+
+//FILE* default_stdout = NULL;
+static char stdout_buf[128];
 
 TaskHandle_t text_task_handle;
 TaskHandle_t adc_task_handle;
@@ -133,6 +147,9 @@ void delete_active_task()
     switch(active)
     {
         case TEXT:
+            fflush(stdout);
+            fclose(stdout);
+            stdout = fopen("/dev/uart/0", "w");
             vTaskDelete(text_task_handle);
             break;
         case ADC:
@@ -155,17 +172,51 @@ void delete_active_task()
     }
 }
 
-int task_manager(struct Data_Queues data_queues)
+int text_task_stdout_redirect(void* c,const char* data,int size)
+{
+    //fprintf(stderr,"String: %s\n",data); //fprintf of data reveals that data is terminated by 9 random characters.
+
+    if(uxQueueSpacesAvailable(logs_buffer) < size)
+    {
+        fprintf(stderr,"%s LOGS QUEUE FULL %d\n",pcTaskGetName(NULL),uxQueueMessagesWaiting(logs_buffer));
+        return size;
+        // char discard = ' ';
+
+        // for(int i=0;i<size-uxQueueSpacesAvailable(logs_buffer);i++)
+        // {
+        //     xQueueReceive(logs_buffer,&discard,pdMS_TO_TICKS(1));
+        // }
+    }
+
+    for(int i=0;i<size-9;i++)
+    {
+
+        if((data[i] >=32 && data[i]<=126) || (data[i] == 0x00) || (data[i] == 10))
+        {
+            xQueueSend(logs_buffer,&(data[i]),pdMS_TO_TICKS(50));
+        }
+    }
+
+    return size;
+}
+
+int task_manager(struct Data_Queues* data_queues)
 {
     int status = EXIT_SUCCESS;
 
-    data_queues.active_task = &active;
-
     struct adc_args adcarg;
-    adcarg.adc_queue = data_queues.adc_out_queue;
+    adcarg.adc_queue = data_queues->adc_out_queue;
     adcarg.payload = adc_payload;
     adcarg.payload_size = ADC_PAYLOAD_LENGTH;
     adcarg.active_task = &active;
+
+    struct text_args textarg;
+    message_acknowledged = true;
+    textarg.ack = &message_acknowledged;
+    textarg.active_task = &active;
+    textarg.payload = text_payload;
+    textarg.text_queue = &logs_buffer;
+    textarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
 
     while(true)
     {
@@ -179,7 +230,26 @@ int task_manager(struct Data_Queues data_queues)
                 case NONE:
                     configPRINTF(("no diag selected\n"));
                     break;
+                case TEXT:
+                    configPRINTF(("Starting Text Dump Task\n"));
+                    configPRINTF(("Redirecting STDOUT\n"));
+
+                    logs_buffer = xQueueCreate(10000,sizeof(char));
+                    //set default for redirecting back to uart0 after text dump page is closed
+                    //default_stdout = stdout;
+
+                    fflush(stdout);
+                    fclose(stdout);
+
+                    stdout = fwopen(NULL,&text_task_stdout_redirect);
+
+                    configPRINTF(("TEST\n"));
+
+                    setvbuf(stdout, stdout_buf, _IOLBF, sizeof(stdout_buf));
+                    xTaskCreate(text_task,"text_task",configMINIMAL_STACK_SIZE*20,&textarg,4,&text_task_handle);
+                    break;
                 case ADC:
+                    configPRINTF(("Starting ADC Task\n"));
                     xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
                     break;
                 default:
@@ -189,27 +259,6 @@ int task_manager(struct Data_Queues data_queues)
 
             active = selected;
         }
-
-        ///////////
-        // uint32_t adc_out_32 = -1;
-
-        // if(uxQueueMessagesWaiting(*(data_queues.adc_out_queue)) > 0)
-        // {
-        //     xQueueReceive(*(data_queues.adc_out_queue),&adc_out_32,pdMS_TO_TICKS(50));
-        // }
-        // else
-        // {
-        //     configPRINTF(("ADC Queue is empty!\n"));
-        // }
-
-        // //TODO: Move this to the mass reading and pass within struct to queue
-        // struct timeval now;
-        // gettimeofday(&now, NULL);
-        // int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
-        // long int time_ms = time_us/1000;
-        
-        // snprintf(payload,MAX_PAYLOAD_LENGTH,"%d|%ld",adc_out_32,time_ms);
-        // printf("%s\n",payload);
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -278,6 +327,18 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = ( uint8_t * ) adc_payload;
             xResp.pAttrData->size = ADC_PAYLOAD_LENGTH;
         }
+        else if(active == TEXT)
+        {
+            if(message_acknowledged == false)
+            {
+                text_payload[499] = (char)0;
+
+                fprintf(stderr,"Payload: %s",text_payload);
+                xResp.pAttrData->pData = ( uint8_t * ) text_payload;
+                xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
+            }
+        }
+
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
         IotBle_SendResponse( &xResp, pxReadParam->connId, pxReadParam->transId );
@@ -303,8 +364,18 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
         if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x00)
         {
-            configPRINTF(("0x00 ENTERED. Stopping all dianostic tasks\n"));
+            configPRINTF(("0x00 ENTERED. Stopping all diagnostic tasks\n"));
             selected = NONE;
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x01)
+        {
+            configPRINTF(("0X01 ENTERED. Starting TextDump Task\n"));
+            selected = TEXT;
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x1F)
+        {
+            configPRINTF(("0x1F ENTERED. Message Acknowledged\n"));
+            message_acknowledged = true;
         }
         else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x02)
         {
