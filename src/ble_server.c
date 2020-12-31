@@ -268,7 +268,7 @@ int task_manager(struct Data_Queues* data_queues)
                     break;
                 case STATE:
                     configPRINTF(("State Selected\n"));
-                    //xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
+                    xTaskCreate(state_task,"state_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&state_task_handle);
                     break;
                 default:
                     break;
@@ -316,6 +316,8 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
 {
     if( ( xStatus == eBTStatusSuccess ) && ( bConnected == false ) )
     {
+        selected = NONE; //stop all diagnostic tasks if device disconnects unexpectedly.
+
         if( connId == usBLEConnectionID )
         {
             IotLogInfo("Disconnected from BLE device.\n");
