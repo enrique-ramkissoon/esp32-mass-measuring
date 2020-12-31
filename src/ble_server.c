@@ -4,6 +4,7 @@
 #include "iot_ble_config.h"
 
 #include "string.h"
+#include <stdint.h>
 
 #include "iot_ble.h"
 #include "stdio.h"
@@ -18,8 +19,7 @@
 #include "main_util.h"
 #include "ble_server.h"
 #include "diagnostic_tasks.h"
-//#include "esp_vfs.h"
-//#include "sys/time.h" 
+#include "sys/time.h" 
 
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
@@ -99,15 +99,25 @@ static const BTService_t xGattDemoService =
 
 #define ADC_PAYLOAD_LENGTH 20
 #define MAX_TEXT_PAYLOAD_LENGTH 500
+#define STATE_PAYLOAD_LENGTH 500
 
 QueueHandle_t logs_buffer;
 bool message_acknowledged = true;
+
+//QueueHandle_t state_queue; //since state logs are stored throughout program runtime, this queue's data must be persistent. Therefore, a separate queue is used for state
 
 enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
 
 char adc_payload[ADC_PAYLOAD_LENGTH];
 char text_payload[MAX_TEXT_PAYLOAD_LENGTH];
+
+
+char state_payload[STATE_PAYLOAD_LENGTH];
+int state_payload_cur_index = 0;
+int64_t time_connect;
+int64_t time_disconnect;
+uint16_t duration = 0xFFFF;
 
 //FILE* default_stdout = NULL;
 static char stdout_buf[128];
@@ -141,9 +151,18 @@ static const IotBleAttributeEventCallback_t pxCallBackArray[NUMBER_ATTRIBUTES] =
     write_attribute
 };
 
+void add_state(uint8_t state)
+{
+    if(state_payload_cur_index<STATE_PAYLOAD_LENGTH)
+    {
+        state_payload[state_payload_cur_index] = (char)(state);
+        state_payload_cur_index++;
+    }
+}
+
 void delete_active_task()
 {
-    printf("Deleting Tasks\n");
+    printf("Deleting Diagnostic Tasks\n");
     switch(active)
     {
         case TEXT:
@@ -151,6 +170,7 @@ void delete_active_task()
             fclose(stdout);
             stdout = fopen("/dev/uart/0", "w");
             vTaskDelete(text_task_handle);
+            vQueueDelete(logs_buffer);
             break;
         case ADC:
             vTaskDelete(adc_task_handle);
@@ -180,12 +200,6 @@ int text_task_stdout_redirect(void* c,const char* data,int size)
     {
         fprintf(stderr,"%s LOGS QUEUE FULL %d\n",pcTaskGetName(NULL),uxQueueMessagesWaiting(logs_buffer));
         return size;
-        // char discard = ' ';
-
-        // for(int i=0;i<size-uxQueueSpacesAvailable(logs_buffer);i++)
-        // {
-        //     xQueueReceive(logs_buffer,&discard,pdMS_TO_TICKS(1));
-        // }
     }
 
     for(int i=0;i<size-9;i++)
@@ -218,6 +232,8 @@ int task_manager(struct Data_Queues* data_queues)
     textarg.text_queue = &logs_buffer;
     textarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
 
+    //state_queue = xQueueCreate(1000,sizeof(uint8_t)); //holds state information in format 0xFF,MAC,CMDS,DURATION,0XFF,MAC2,CMDS2,DURATION2,0xFF,...
+
     while(true)
     {
         //run selected task if not already running
@@ -243,14 +259,16 @@ int task_manager(struct Data_Queues* data_queues)
 
                     stdout = fwopen(NULL,&text_task_stdout_redirect);
 
-                    configPRINTF(("TEST\n"));
-
                     setvbuf(stdout, stdout_buf, _IOLBF, sizeof(stdout_buf));
                     xTaskCreate(text_task,"text_task",configMINIMAL_STACK_SIZE*20,&textarg,4,&text_task_handle);
                     break;
                 case ADC:
                     configPRINTF(("Starting ADC Task\n"));
                     xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
+                    break;
+                case STATE:
+                    configPRINTF(("State Selected\n"));
+                    xTaskCreate(state_task,"state_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&state_task_handle);
                     break;
                 default:
                     break;
@@ -298,10 +316,60 @@ static void _connectionCallback( BTStatus_t xStatus, uint16_t connId, bool bConn
 {
     if( ( xStatus == eBTStatusSuccess ) && ( bConnected == false ) )
     {
+        selected = NONE; //stop all diagnostic tasks if device disconnects unexpectedly.
+
         if( connId == usBLEConnectionID )
         {
             IotLogInfo("Disconnected from BLE device.\n");
         }
+
+        //log disconnect time
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        time_disconnect = (int64_t)now.tv_sec;
+
+        duration = (uint16_t)(time_disconnect - time_connect);
+
+        uint8_t dur1 = (uint8_t)((duration & 0xFF00) >> 8);
+        uint8_t dur2 = (uint8_t)(duration & 0x00FF);
+
+        add_state(dur1);
+        add_state(dur2);
+        add_state(0x3F);
+    }
+    else if(( xStatus == eBTStatusSuccess ) && ( bConnected == true ))
+    {
+        IotLogInfo("Connected to BLE Device %X %X %X %X %X %X\n", (pxRemoteBdAddr->ucAddress)[0], (pxRemoteBdAddr->ucAddress)[1],(pxRemoteBdAddr->ucAddress)[2],
+                                                                    (pxRemoteBdAddr->ucAddress)[3],(pxRemoteBdAddr->ucAddress)[4],(pxRemoteBdAddr->ucAddress)[5]);
+
+        
+        if(state_payload_cur_index < (STATE_PAYLOAD_LENGTH-7))
+        {
+            state_payload[state_payload_cur_index] =  (char)(0x3F);
+            state_payload_cur_index++;
+        }
+        else
+        {
+            configPRINTF(("State Array Full\n"));
+            return;
+        }
+        
+        
+        //Add device MAC Address
+        for(int i=0;i<=5;i++)
+        {
+            state_payload[state_payload_cur_index] = (pxRemoteBdAddr->ucAddress)[i];
+            state_payload_cur_index++;
+        }
+
+        //log connection time
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        time_connect = (int64_t)now.tv_sec;
+        time_disconnect = time_connect;
+        
+        duration = 0xFFFF;
+        
     }
 }
 
@@ -338,6 +406,11 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
                 xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
             }
         }
+        else if(active == STATE)
+        {
+            xResp.pAttrData->pData = ( uint8_t * ) state_payload;
+            xResp.pAttrData->size = STATE_PAYLOAD_LENGTH;
+        }
 
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
@@ -371,6 +444,8 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             configPRINTF(("0X01 ENTERED. Starting TextDump Task\n"));
             selected = TEXT;
+
+            add_state(0x01);
         }
         else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x1F)
         {
@@ -381,6 +456,15 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             configPRINTF(("0X02 ENTERED. Starting ADC Task\n"));
             selected = ADC;
+
+            add_state(0x02);
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x03)
+        {
+            configPRINTF(("0x03 ENTERED. Starting State Info Task\n"));
+            selected = STATE;
+
+            add_state(0x03);
         }
 
         xResp.eventStatus = eBTStatusSuccess;

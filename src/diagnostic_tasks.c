@@ -70,3 +70,12 @@ void text_task(void* pvParameters)
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
+
+void state_task(void* pvParameters)
+{
+    while(true)
+    {
+        configPRINTF(("STATE TASK\n"));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}

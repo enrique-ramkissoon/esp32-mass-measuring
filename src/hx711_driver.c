@@ -132,7 +132,7 @@ int32_t get_adc_out_32()
     taskEXIT_CRITICAL();
 
     int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
-    configPRINTF(("Result= %i\n",result32));
+    //configPRINTF(("Result= %i\n",result32));
     return result32;
 }
 

@@ -3,6 +3,6 @@
 
 void adc_task(void* pvParameters);
 void text_task(void* pvParameters);
-
+void state_task(void* pvParameters);
 
 #endif
