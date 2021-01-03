@@ -97,10 +97,6 @@ static const BTService_t xGattDemoService =
     .pxBLEAttributes     = ( BTAttribute_t * ) pxAttributeTable
 };
 
-#define ADC_PAYLOAD_LENGTH 20
-#define MAX_TEXT_PAYLOAD_LENGTH 500
-#define STATE_PAYLOAD_LENGTH 500
-
 QueueHandle_t logs_buffer;
 bool message_acknowledged = true;
 
@@ -110,7 +106,7 @@ enum diagnostic_tasks selected = NONE;
 enum diagnostic_tasks active = NONE;
 
 char adc_payload[ADC_PAYLOAD_LENGTH];
-char text_payload[MAX_TEXT_PAYLOAD_LENGTH];
+char text_payload[MAX_TEXT_PAYLOAD_LENGTH]; //reused for stats
 
 
 char state_payload[STATE_PAYLOAD_LENGTH];
@@ -121,6 +117,9 @@ uint16_t duration = 0xFFFF;
 
 //FILE* default_stdout = NULL;
 static char stdout_buf[128];
+
+//Stats Ack
+int stats_ack = 0x00;
 
 TaskHandle_t text_task_handle;
 TaskHandle_t adc_task_handle;
@@ -162,7 +161,7 @@ void add_state(uint8_t state)
 
 void delete_active_task()
 {
-    printf("Deleting Diagnostic Tasks\n");
+    configPRINTF(("Deleting Active Diagnostic Tasks\n"));
     switch(active)
     {
         case TEXT:
@@ -232,6 +231,11 @@ int task_manager(struct Data_Queues* data_queues)
     textarg.text_queue = &logs_buffer;
     textarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
 
+    struct stats_args statsarg;
+    statsarg.payload = text_payload;
+    statsarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
+    statsarg.ack = &stats_ack;
+
     //state_queue = xQueueCreate(1000,sizeof(uint8_t)); //holds state information in format 0xFF,MAC,CMDS,DURATION,0XFF,MAC2,CMDS2,DURATION2,0xFF,...
 
     while(true)
@@ -244,7 +248,7 @@ int task_manager(struct Data_Queues* data_queues)
             switch(selected)
             {
                 case NONE:
-                    configPRINTF(("no diag selected\n"));
+                    configPRINTF(("no diagnostic tasks selected\n"));
                     break;
                 case TEXT:
                     configPRINTF(("Starting Text Dump Task\n"));
@@ -260,16 +264,19 @@ int task_manager(struct Data_Queues* data_queues)
                     stdout = fwopen(NULL,&text_task_stdout_redirect);
 
                     setvbuf(stdout, stdout_buf, _IOLBF, sizeof(stdout_buf));
-                    xTaskCreate(text_task,"text_task",configMINIMAL_STACK_SIZE*20,&textarg,4,&text_task_handle);
+                    xTaskCreate(text_task,"text_task",DIAGNOSTIC_TASKS_STACK_SIZE,&textarg,4,&text_task_handle);
                     break;
                 case ADC:
                     configPRINTF(("Starting ADC Task\n"));
-                    xTaskCreate(adc_task,"adc_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&adc_task_handle);
+                    xTaskCreate(adc_task,"adc_task",DIAGNOSTIC_TASKS_STACK_SIZE,&adcarg,4,&adc_task_handle);
                     break;
                 case STATE:
                     configPRINTF(("State Selected\n"));
-                    xTaskCreate(state_task,"state_task",configMINIMAL_STACK_SIZE*5,&adcarg,4,&state_task_handle);
+                    xTaskCreate(state_task,"state_task",DIAGNOSTIC_TASKS_STACK_SIZE,NULL,4,&state_task_handle);
                     break;
+                case STATS:
+                    configPRINTF(("Starting Stats task\n"));
+                    xTaskCreate(stats_task,"stats_task",DIAGNOSTIC_TASKS_STACK_SIZE,&statsarg,4,&stats_task_handle);
                 default:
                     break;
 
@@ -308,7 +315,7 @@ static BaseType_t vGattDemoSvcHook( void )
             xRet = pdFAIL;
         }
     }
-
+    
     return xRet;
 }
 
@@ -399,9 +406,9 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             if(message_acknowledged == false)
             {
-                text_payload[499] = (char)0;
+                text_payload[MAX_TEXT_PAYLOAD_LENGTH-1] = (char)0;
 
-                fprintf(stderr,"Payload: %s",text_payload);
+                //fprintf(stderr,"Payload: %s",text_payload);
                 xResp.pAttrData->pData = ( uint8_t * ) text_payload;
                 xResp.pAttrData->size = MAX_TEXT_PAYLOAD_LENGTH;
             }
@@ -410,6 +417,11 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             xResp.pAttrData->pData = ( uint8_t * ) state_payload;
             xResp.pAttrData->size = STATE_PAYLOAD_LENGTH;
+        }
+        else if(active == STATS)
+        {
+            xResp.pAttrData->pData = ( uint8_t * ) text_payload;
+            xResp.pAttrData->size = (size_t)(text_payload_get_current_index() + 10);
         }
 
         xResp.attrDataOffset = 0;
@@ -466,6 +478,23 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
             add_state(0x03);
         }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x04)
+        {
+            configPRINTF(("0x04 ENTERED. STATS Selected\n"));
+            selected = STATS;
+
+            add_state(0x04);
+        }
+        else if(pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x41)
+        {
+            configPRINTF(("0x41 Entered. Task Names Ack'd\n"));
+            stats_ack = 0x41;
+        }
+        else if(pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x42)
+        {
+            configPRINTF(("0x41 Entered. Runtime Ack'd\n"));
+            stats_ack = 0x42;
+        }
 
         xResp.eventStatus = eBTStatusSuccess;
 
@@ -476,5 +505,29 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->size = pxWriteParam->length;
             IotBle_SendResponse( &xResp, pxWriteParam->connId, pxWriteParam->transId ); //TODO: Use this to send an acknowledgement of write. Remember to give the attribute Read perms.
         }
+    }
+}
+
+//returns the next fillable index in text_payload array. this function is used in the stats task
+//since TaskStatus_t does not provide its array lengths
+int text_payload_get_current_index()
+{
+    for(int i=1;i<MAX_TEXT_PAYLOAD_LENGTH;i++)
+    {
+        if(text_payload[i] == (char)0x00)
+        {
+            return i;
+        }
+    }
+
+    configPRINTF(("text_payload[] IS FULL\n. Returning 0\n"));
+    return 0;
+}
+
+void clear_text_payload()
+{
+    for(int j=0;j<MAX_TEXT_PAYLOAD_LENGTH;j++)
+    {
+        text_payload[j] = (char)0x00;
     }
 }
