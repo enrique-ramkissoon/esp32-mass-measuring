@@ -121,11 +121,13 @@ static char stdout_buf[128];
 //Stats Ack
 int stats_ack = 0x00;
 
+char cmd_result = (char)0xF0; //random initial value
+
 TaskHandle_t text_task_handle;
 TaskHandle_t adc_task_handle;
 TaskHandle_t state_task_handle;
 TaskHandle_t stats_task_handle;
-TaskHandle_t cmd_task_handle;
+TaskHandle_t cmd_connect_task_handle;
 TaskHandle_t net_task_handle;
 
 /**
@@ -181,7 +183,7 @@ void delete_active_task()
             vTaskDelete(stats_task_handle);
             break;
         case COMMAND:
-            vTaskDelete(cmd_task_handle);
+            //vTaskDelete(cmd_connect_task_handle);
             break;
         case NETWORK:
             vTaskDelete(net_task_handle);
@@ -277,7 +279,13 @@ int task_manager(struct Data_Queues* data_queues)
                 case STATS:
                     configPRINTF(("Starting Stats task\n"));
                     xTaskCreate(stats_task,"stats_task",DIAGNOSTIC_TASKS_STACK_SIZE,&statsarg,4,&stats_task_handle);
+                    break;
+                case COMMAND:
+                    configPRINTF(("Starting Connect Verification Task\n"));
+                    xTaskCreate(command_verify_connect_task,"verify_connect",DIAGNOSTIC_TASKS_STACK_SIZE,&cmd_result,4,&cmd_connect_task_handle);
+                    break;
                 default:
+                    configPRINTF(("ERROR: Unknown Diagnostic Task Selected\n"));
                     break;
 
             }
@@ -423,6 +431,11 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = ( uint8_t * ) text_payload;
             xResp.pAttrData->size = (size_t)(text_payload_get_current_index() + 10);
         }
+        else if(active == COMMAND)
+        {
+            xResp.pAttrData->pData = ( uint8_t * )(&cmd_result);
+            xResp.pAttrData->size = (size_t)(1);
+        }
 
         xResp.attrDataOffset = 0;
         xResp.eventStatus = eBTStatusSuccess;
@@ -494,6 +507,21 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             configPRINTF(("0x41 Entered. Runtime Ack'd\n"));
             stats_ack = 0x42;
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x51)
+        {
+            configPRINTF(("0x51 ENTERED. Verify HX711 Connection Selected\n"));
+            selected = COMMAND;
+            active = NONE; //set active = none to allow for executing the command multiple times.
+
+            add_state(0x51);
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x52)
+        {
+            configPRINTF(("0x52 ENTERED. Verify HX711 Sample Rate Selected\n"));
+            selected = COMMAND;
+
+            add_state(0x52);
         }
 
         xResp.eventStatus = eBTStatusSuccess;

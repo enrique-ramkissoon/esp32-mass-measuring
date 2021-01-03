@@ -2,9 +2,13 @@
 #include "task.h"
 #include "queue.h"
 #include "esp_system.h"
+
 #include "diagnostic_tasks.h"
 #include "ble_server.h"
+#include "hx711_driver.h"
+
 #include "sys/time.h"
+#include "rom/ets_sys.h"
 #include "stdio.h"
 #include "string.h"
 
@@ -160,4 +164,43 @@ void stats_task(void* pvParameters)
 
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
+}
+
+void command_verify_connect_task(void* pvParameters)
+{
+    configPRINTF(("Verifying HX711 Connection\n"));
+
+    char* cmd_result = (char*)(pvParameters);
+
+    *cmd_result = (char)0x01;
+
+    taskENTER_CRITICAL();
+    if(gpio_get_level(DOUT_PIN) == 1)
+    {
+        ets_delay_us(200000);
+        
+        if(gpio_get_level(DOUT_PIN) == 1)
+        {
+            configPRINTF(("DOUT not connected \n"));
+            
+            *cmd_result = (char)0x00;
+        }
+        
+    }else
+    {
+        get_adc_out_32();
+        
+        ets_delay_us(2);
+
+        if(gpio_get_level(DOUT_PIN) != 1)
+        {
+            configPRINTF(("EITHER SCK OR DOUT DISCONNECTED\n"));
+            *cmd_result = (char)0x00;
+        }
+    }  
+    
+    taskEXIT_CRITICAL();
+
+    configPRINTF(("Exiting Verify Connect\n"));
+    vTaskDelete(NULL);
 }

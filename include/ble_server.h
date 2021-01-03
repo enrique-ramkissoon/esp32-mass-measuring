@@ -50,7 +50,6 @@ struct stats_args
     //0x41 = task names received
     //0x42 = runtime received
     //0x43 = memory usage received
-    //0x44 = 
     int* ack; 
 };
 
