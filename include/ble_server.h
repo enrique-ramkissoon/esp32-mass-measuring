@@ -11,7 +11,7 @@
 #define MAX_TEXT_PAYLOAD_LENGTH 500
 #define STATE_PAYLOAD_LENGTH 500
 
-enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
+enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, COMMAND_SR, NETWORK};
 
 int task_manager(struct Data_Queues* data_queues);
 

@@ -204,3 +204,43 @@ void command_verify_connect_task(void* pvParameters)
     configPRINTF(("Exiting Verify Connect\n"));
     vTaskDelete(NULL);
 }
+
+void command_verify_sample_rate_task(void* pvParameters)
+{
+    configPRINTF(("Verifying HX711 Sample Rate\n"));
+
+    char* cmd_result = (char*)(pvParameters);
+
+    //HX711 Reading must be ready after this delay
+    taskENTER_CRITICAL();
+    ets_delay_us(200000);
+
+    if(gpio_get_level(DOUT_PIN) == 0)
+    {
+        struct timeval now;
+        gettimeofday(&now, NULL);
+        int64_t initial_time = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+
+        get_adc_out_32();
+
+        while(gpio_get_level(DOUT_PIN) == 1)
+        {
+            ets_delay_us(1000);
+        }
+
+        gettimeofday(&now, NULL);
+        int64_t final_time = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+
+        int64_t reading_time_ms = (final_time - initial_time)/1000;
+
+        *cmd_result = (char)reading_time_ms;
+    }
+    else
+    {
+        configPRINTF(("Unable to determine sample rate. HX711 may be disconnected\n"));
+        *cmd_result = (char)0x00;
+    }
+    taskEXIT_CRITICAL();
+
+    vTaskDelete(NULL);
+}

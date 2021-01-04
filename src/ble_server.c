@@ -284,6 +284,10 @@ int task_manager(struct Data_Queues* data_queues)
                     configPRINTF(("Starting Connect Verification Task\n"));
                     xTaskCreate(command_verify_connect_task,"verify_connect",DIAGNOSTIC_TASKS_STACK_SIZE,&cmd_result,4,&cmd_connect_task_handle);
                     break;
+                case COMMAND_SR:
+                    configPRINTF(("Starting Sample Rate Verification Task\n"));
+                    xTaskCreate(command_verify_sample_rate_task,"verify_sr",DIAGNOSTIC_TASKS_STACK_SIZE,&cmd_result,4,&cmd_connect_task_handle);
+                    break;
                 default:
                     configPRINTF(("ERROR: Unknown Diagnostic Task Selected\n"));
                     break;
@@ -431,7 +435,7 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = ( uint8_t * ) text_payload;
             xResp.pAttrData->size = (size_t)(text_payload_get_current_index() + 10);
         }
-        else if(active == COMMAND)
+        else if(active == COMMAND || active == COMMAND_SR)
         {
             xResp.pAttrData->pData = ( uint8_t * )(&cmd_result);
             xResp.pAttrData->size = (size_t)(1);
@@ -519,10 +523,12 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
         else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x52)
         {
             configPRINTF(("0x52 ENTERED. Verify HX711 Sample Rate Selected\n"));
-            selected = COMMAND;
+            selected = COMMAND_SR;
+            active = NONE;
 
             add_state(0x52);
         }
+        
 
         xResp.eventStatus = eBTStatusSuccess;
 
