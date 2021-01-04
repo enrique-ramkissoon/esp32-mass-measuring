@@ -8,6 +8,7 @@
 
 #include "driver/gpio.h"
 #include "rom/ets_sys.h"
+#include "sys/time.h"
 
 gpio_num_t GPIO_OUTPUT_SCK = GPIO_NUM_17;
 gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
@@ -80,10 +81,22 @@ void mass_read_task(void* pvParameters)
 
         if(gpio_get_level(GPIO_INPUT_DT) == 0)
         {
-            int32_t adc_out = get_adc_out_32();
+            struct adc_queue_structure adc_reading;
 
-            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_out));
-            double weight = get_weight(adc_out);
+            adc_reading.adc_out = get_adc_out_32();
+
+            struct timeval now;
+            gettimeofday(&now, NULL);
+            int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+            long int time_millis = time_us/1000;
+
+            //configPRINTF(("TIME = %ld\n", time_millis));
+
+            adc_reading.time_ms = time_millis;
+        
+
+            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
+            double weight = get_weight(adc_reading.adc_out);
         
             //configPRINTF(("Absolute Weight /g = %f \t Tared Weight = %f\n",weight,weight-TARE));
         }
@@ -132,7 +145,7 @@ int32_t get_adc_out_32()
     taskEXIT_CRITICAL();
 
     int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
-    //configPRINTF(("Result= %i\n",result32));
+    configPRINTF(("Result= %i\n",result32));
     return result32;
 }
 

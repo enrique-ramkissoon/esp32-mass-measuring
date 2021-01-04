@@ -238,6 +238,10 @@ int task_manager(struct Data_Queues* data_queues)
     statsarg.payload_size = MAX_TEXT_PAYLOAD_LENGTH;
     statsarg.ack = &stats_ack;
 
+    struct cmd_sr_args cmdarg;
+    cmdarg.adc_queue = data_queues->adc_out_queue;
+    cmdarg.result = &cmd_result;
+
     //state_queue = xQueueCreate(1000,sizeof(uint8_t)); //holds state information in format 0xFF,MAC,CMDS,DURATION,0XFF,MAC2,CMDS2,DURATION2,0xFF,...
 
     while(true)
@@ -286,7 +290,7 @@ int task_manager(struct Data_Queues* data_queues)
                     break;
                 case COMMAND_SR:
                     configPRINTF(("Starting Sample Rate Verification Task\n"));
-                    xTaskCreate(command_verify_sample_rate_task,"verify_sr",DIAGNOSTIC_TASKS_STACK_SIZE,&cmd_result,4,&cmd_connect_task_handle);
+                    xTaskCreate(command_verify_sample_rate_task,"verify_sr",DIAGNOSTIC_TASKS_STACK_SIZE,&cmdarg,4,&cmd_connect_task_handle);
                     break;
                 default:
                     configPRINTF(("ERROR: Unknown Diagnostic Task Selected\n"));

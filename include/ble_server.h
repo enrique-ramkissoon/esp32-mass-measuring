@@ -28,7 +28,7 @@ struct adc_args
     int payload_size;
     QueueHandle_t* adc_queue;
 
-    enum diagnostic_tasks* active_task;
+    enum diagnostic_tasks* active_task; //TODO: Remove Unused
 };
 
 struct text_args
@@ -38,7 +38,7 @@ struct text_args
     QueueHandle_t* text_queue;
     bool* ack;
 
-    enum diagnostic_tasks* active_task;
+    enum diagnostic_tasks* active_task; //TODO: Remove unused
 };
 
 struct stats_args
@@ -51,6 +51,12 @@ struct stats_args
     //0x42 = runtime received
     //0x43 = memory usage received
     int* ack; 
+};
+
+struct cmd_sr_args
+{
+    QueueHandle_t* adc_queue;
+    char* result;
 };
 
 #endif

@@ -17,26 +17,28 @@ void adc_task(void* pvParameters)
     while(true)
     {
         //configPRINTF(("Active:%d\n",*(((struct adc_args*)(pvParameters))->active_task) ));
-        uint32_t adc_out_32 = -1;
+        //uint32_t adc_out_32 = -1;
 
         struct adc_args adcarg = *((struct adc_args*)(pvParameters));
 
+        struct adc_queue_structure adc_reading;
+
         if(uxQueueMessagesWaiting(*(adcarg.adc_queue)) > 0)
         {
-            xQueueReceive(*(adcarg.adc_queue),&adc_out_32,pdMS_TO_TICKS(50));
+            xQueueReceive(*(adcarg.adc_queue),&adc_reading,pdMS_TO_TICKS(50));
         }
         else
         {
             configPRINTF(("ADC Queue is empty!\n"));
         }
 
-        //TODO: Move this to the mass reading and pass within struct to queue
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
-        long int time_ms = time_us/1000;
+        // //TODO: Move this to the mass reading and pass within struct to queue
+        // struct timeval now;
+        // gettimeofday(&now, NULL);
+        // int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+        // long int time_ms = time_us/1000;
         
-        snprintf(adcarg.payload,adcarg.payload_size,"%d|%ld",adc_out_32,time_ms);
+        snprintf(adcarg.payload,adcarg.payload_size,"%d|%ld",adc_reading.adc_out,adc_reading.time_ms);
         //printf("adcout=%s\n",adcarg.payload);
 
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -209,38 +211,32 @@ void command_verify_sample_rate_task(void* pvParameters)
 {
     configPRINTF(("Verifying HX711 Sample Rate\n"));
 
-    char* cmd_result = (char*)(pvParameters);
+    struct cmd_sr_args cmdarg = *((struct cmd_sr_args*)(pvParameters));
 
-    //HX711 Reading must be ready after this delay
-    taskENTER_CRITICAL();
-    ets_delay_us(200000);
+    long int last;
+    int last_delta = 0;
+    int delta_sum = 0;
 
-    if(gpio_get_level(DOUT_PIN) == 0)
+    for(int i=0;i<10;i++)
     {
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        int64_t initial_time = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+        struct adc_queue_structure adc_reading;
 
-        get_adc_out_32();
+        xQueueReceive(*(cmdarg.adc_queue),&adc_reading,pdMS_TO_TICKS(300));
 
-        while(gpio_get_level(DOUT_PIN) == 1)
+        if(i != 0)
         {
-            ets_delay_us(1000);
+            last_delta = adc_reading.time_ms - last;
+            delta_sum += last_delta;
         }
 
-        gettimeofday(&now, NULL);
-        int64_t final_time = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
-
-        int64_t reading_time_ms = (final_time - initial_time)/1000;
-
-        *cmd_result = (char)reading_time_ms;
+        last = adc_reading.time_ms;
     }
-    else
-    {
-        configPRINTF(("Unable to determine sample rate. HX711 may be disconnected\n"));
-        *cmd_result = (char)0x00;
-    }
-    taskEXIT_CRITICAL();
+
+    int delta_average = delta_sum / 9;
+
+    configPRINTF(("Delta Average = %d\n",delta_average));
+
+    *(cmdarg.result) = (char)delta_average;
 
     vTaskDelete(NULL);
 }
