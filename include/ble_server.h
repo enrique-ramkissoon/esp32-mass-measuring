@@ -11,7 +11,7 @@
 #define MAX_TEXT_PAYLOAD_LENGTH 500
 #define STATE_PAYLOAD_LENGTH 500
 
-enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, NETWORK};
+enum diagnostic_tasks {NONE, TEXT, ADC, STATE, STATS, COMMAND, COMMAND_SR, NETWORK};
 
 int task_manager(struct Data_Queues* data_queues);
 
@@ -28,7 +28,7 @@ struct adc_args
     int payload_size;
     QueueHandle_t* adc_queue;
 
-    enum diagnostic_tasks* active_task;
+    enum diagnostic_tasks* active_task; //TODO: Remove Unused
 };
 
 struct text_args
@@ -38,7 +38,7 @@ struct text_args
     QueueHandle_t* text_queue;
     bool* ack;
 
-    enum diagnostic_tasks* active_task;
+    enum diagnostic_tasks* active_task; //TODO: Remove unused
 };
 
 struct stats_args
@@ -50,8 +50,13 @@ struct stats_args
     //0x41 = task names received
     //0x42 = runtime received
     //0x43 = memory usage received
-    //0x44 = 
     int* ack; 
+};
+
+struct cmd_sr_args
+{
+    QueueHandle_t* adc_queue;
+    char* result;
 };
 
 #endif

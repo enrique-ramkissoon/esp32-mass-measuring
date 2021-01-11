@@ -2,9 +2,13 @@
 #include "task.h"
 #include "queue.h"
 #include "esp_system.h"
+
 #include "diagnostic_tasks.h"
 #include "ble_server.h"
+#include "hx711_driver.h"
+
 #include "sys/time.h"
+#include "rom/ets_sys.h"
 #include "stdio.h"
 #include "string.h"
 
@@ -13,26 +17,28 @@ void adc_task(void* pvParameters)
     while(true)
     {
         //configPRINTF(("Active:%d\n",*(((struct adc_args*)(pvParameters))->active_task) ));
-        uint32_t adc_out_32 = -1;
+        //uint32_t adc_out_32 = -1;
 
         struct adc_args adcarg = *((struct adc_args*)(pvParameters));
 
+        struct adc_queue_structure adc_reading;
+
         if(uxQueueMessagesWaiting(*(adcarg.adc_queue)) > 0)
         {
-            xQueueReceive(*(adcarg.adc_queue),&adc_out_32,pdMS_TO_TICKS(50));
+            xQueueReceive(*(adcarg.adc_queue),&adc_reading,pdMS_TO_TICKS(50));
         }
         else
         {
             configPRINTF(("ADC Queue is empty!\n"));
         }
 
-        //TODO: Move this to the mass reading and pass within struct to queue
-        struct timeval now;
-        gettimeofday(&now, NULL);
-        int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
-        long int time_ms = time_us/1000;
+        // //TODO: Move this to the mass reading and pass within struct to queue
+        // struct timeval now;
+        // gettimeofday(&now, NULL);
+        // int64_t time_us = (int64_t)now.tv_sec * 1000000L + (int64_t)now.tv_usec;
+        // long int time_ms = time_us/1000;
         
-        snprintf(adcarg.payload,adcarg.payload_size,"%d|%ld",adc_out_32,time_ms);
+        snprintf(adcarg.payload,adcarg.payload_size,"%d|%ld",adc_reading.adc_out,adc_reading.time_ms);
         //printf("adcout=%s\n",adcarg.payload);
 
         vTaskDelay(pdMS_TO_TICKS(100));
@@ -160,4 +166,77 @@ void stats_task(void* pvParameters)
 
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
+}
+
+void command_verify_connect_task(void* pvParameters)
+{
+    configPRINTF(("Verifying HX711 Connection\n"));
+
+    char* cmd_result = (char*)(pvParameters);
+
+    *cmd_result = (char)0x01;
+
+    taskENTER_CRITICAL();
+    if(gpio_get_level(DOUT_PIN) == 1)
+    {
+        ets_delay_us(200000);
+        
+        if(gpio_get_level(DOUT_PIN) == 1)
+        {
+            configPRINTF(("DOUT not connected \n"));
+            
+            *cmd_result = (char)0x00;
+        }
+        
+    }else
+    {
+        get_adc_out_32();
+        
+        ets_delay_us(2);
+
+        if(gpio_get_level(DOUT_PIN) != 1)
+        {
+            configPRINTF(("EITHER SCK OR DOUT DISCONNECTED\n"));
+            *cmd_result = (char)0x00;
+        }
+    }  
+    
+    taskEXIT_CRITICAL();
+
+    configPRINTF(("Exiting Verify Connect\n"));
+    vTaskDelete(NULL);
+}
+
+void command_verify_sample_rate_task(void* pvParameters)
+{
+    configPRINTF(("Verifying HX711 Sample Rate\n"));
+
+    struct cmd_sr_args cmdarg = *((struct cmd_sr_args*)(pvParameters));
+
+    long int last;
+    int last_delta = 0;
+    int delta_sum = 0;
+
+    for(int i=0;i<10;i++)
+    {
+        struct adc_queue_structure adc_reading;
+
+        xQueueReceive(*(cmdarg.adc_queue),&adc_reading,pdMS_TO_TICKS(300));
+
+        if(i != 0)
+        {
+            last_delta = adc_reading.time_ms - last;
+            delta_sum += last_delta;
+        }
+
+        last = adc_reading.time_ms;
+    }
+
+    int delta_average = delta_sum / 9;
+
+    configPRINTF(("Delta Average = %d\n",delta_average));
+
+    *(cmdarg.result) = (char)delta_average;
+
+    vTaskDelete(NULL);
 }
