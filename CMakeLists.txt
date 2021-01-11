@@ -5,7 +5,8 @@ project(esp32MassMeasure)
 add_executable(massMeasure  src/main.c
                             src/hx711_driver.c
                             src/ble_server.c
-                            src/diagnostic_tasks.c)
+                            src/diagnostic_tasks.c
+                            src/wifi_connect.c)
 
 # Tell IDF build to link against this target.
 set(IDF_PROJECT_EXECUTABLE massMeasure)
