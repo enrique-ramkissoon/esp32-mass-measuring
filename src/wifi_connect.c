@@ -35,6 +35,8 @@ esp_err_t connect_wifi()
 
     err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &nvs_storage_handler);
 
+    //ssid
+
     size_t ssid_blob_size = 0;
     err = nvs_get_blob(nvs_storage_handler, "ssid", NULL, &ssid_blob_size);
     configPRINTF(("ssid blob size = %i\n",ssid_blob_size));
@@ -60,9 +62,10 @@ esp_err_t connect_wifi()
         }
     }
 
-    char* stored_ssid_str = calloc(ssid_blob_size+1,sizeof(char));
+    int ssid_char_count = (ssid_blob_size+sizeof(uint32_t))/sizeof(uint32_t); //+1 character for null terminator char
+    char* stored_ssid_str = calloc(ssid_char_count,sizeof(char));
 
-    for(int i=0;i<ssid_blob_size;i++)
+    for(int i=0;i<ssid_char_count-1;i++)
     {
         stored_ssid_str[i] = (char)(stored_ssid[i]);
         configPRINTF(("%d\n",stored_ssid[i]));
@@ -97,9 +100,10 @@ esp_err_t connect_wifi()
         }
     }
 
-    char* stored_pw_str = calloc(pw_blob_size+1,sizeof(char));
+    int pw_char_count = (pw_blob_size+sizeof(uint32_t))/sizeof(uint32_t); //+1 character for null terminator char
+    char* stored_pw_str = calloc(pw_char_count,sizeof(char));
 
-    for(int i=0;i<pw_blob_size;i++)
+    for(int i=0;i<pw_char_count-1;i++)
     {
         stored_pw_str[i] = (char)(stored_pw[i]);
         configPRINTF(("%d\n",stored_pw[i]));
@@ -109,8 +113,8 @@ esp_err_t connect_wifi()
 
     networkParameters.pcSSID = stored_ssid_str;
     networkParameters.pcPassword = stored_pw_str;
-    networkParameters.ucPasswordLength = pw_blob_size;
-    networkParameters.ucSSIDLength = ssid_blob_size;
+    networkParameters.ucPasswordLength = pw_char_count;
+    networkParameters.ucSSIDLength = ssid_char_count;
     networkParameters.xSecurity = eWiFiSecurityWPA2;
 
     wifiStatus = WIFI_ConnectAP( &( networkParameters ) );
