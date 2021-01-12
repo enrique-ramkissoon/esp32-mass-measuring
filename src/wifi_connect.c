@@ -61,6 +61,11 @@ esp_err_t connect_wifi()
             return err;
         }
     }
+    else
+    {
+        configPRINTF(("No SSID in NVS Flash. WiFi Failed to Connect\n"));
+        return ESP_FAIL;
+    }
 
     int ssid_char_count = (ssid_blob_size+sizeof(uint32_t))/sizeof(uint32_t); //+1 character for null terminator char
     char* stored_ssid_str = calloc(ssid_char_count,sizeof(char));
@@ -99,6 +104,7 @@ esp_err_t connect_wifi()
             return err;
         }
     }
+    
 
     int pw_char_count = (pw_blob_size+sizeof(uint32_t))/sizeof(uint32_t); //+1 character for null terminator char
     char* stored_pw_str = calloc(pw_char_count,sizeof(char));
