@@ -37,6 +37,7 @@ esp_err_t connect_wifi()
 
     size_t ssid_blob_size = 0;
     err = nvs_get_blob(nvs_storage_handler, "ssid", NULL, &ssid_blob_size);
+    configPRINTF(("ssid blob size = %i\n",ssid_blob_size));
 
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND)
     {
@@ -64,13 +65,16 @@ esp_err_t connect_wifi()
     for(int i=0;i<ssid_blob_size;i++)
     {
         stored_ssid_str[i] = (char)(stored_ssid[i]);
+        configPRINTF(("%d\n",stored_ssid[i]));
     }
 
-
+    configPRINTF(("ssid from nvs: %s\n",stored_ssid_str));
 
     //Password
     size_t pw_blob_size = 0;
     err = nvs_get_blob(nvs_storage_handler, "pw", NULL, &pw_blob_size);
+
+    configPRINTF(("pw blob size = %i\n",pw_blob_size));
 
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND)
     {
@@ -98,7 +102,10 @@ esp_err_t connect_wifi()
     for(int i=0;i<pw_blob_size;i++)
     {
         stored_pw_str[i] = (char)(stored_pw[i]);
+        configPRINTF(("%d\n",stored_pw[i]));
     }
+
+    configPRINTF(("pw from nvs: %s\n",stored_pw_str));
 
     networkParameters.pcSSID = stored_ssid_str;
     networkParameters.pcPassword = stored_pw_str;

@@ -563,14 +563,15 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
                     ssid_32[i] = *((pxWriteParam->pValue) + 1 + i);
                 }
 
-                err = nvs_set_blob(nvs_storage_handler_w, "ssid", (pxWriteParam->pValue) + 1, (pxWriteParam->length) - 1);
+                err = nvs_set_blob(nvs_storage_handler_w, "ssid", ssid_32, ssid_size*sizeof(uint32_t));
 
                 if(err != ESP_OK)
                 {
                     configPRINTF(("Failed to write ssid to nvs\n"));
                 }
 
-                configPRINTF(("Set SSID to %s\n",pxWriteParam->pValue+1));
+                configPRINTF(("Set SSID to %c%c%c%c%c%c%c%c%c%c\n",ssid_32[0],ssid_32[1],ssid_32[2],ssid_32[3],ssid_32[4],ssid_32[5]
+                ,ssid_32[6],ssid_32[7],ssid_32[8],ssid_32[9]));
 
                 nvs_close(nvs_storage_handler_w);
             }
@@ -582,14 +583,24 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
                 err = nvs_open("storage", NVS_READWRITE, &nvs_storage_handler_w);
 
-                err = nvs_set_blob(nvs_storage_handler_w, "pw", (pxWriteParam->pValue) + 1, (pxWriteParam->length) - 1);
+                const int pw_size = (pxWriteParam->length) - 1;
+
+                uint32_t pw_32[pw_size];
+
+                for(int i=0;i<pw_size;i++)
+                {
+                    pw_32[i] = *((pxWriteParam->pValue) + 1 + i);
+                }
+
+                err = nvs_set_blob(nvs_storage_handler_w, "pw", pw_32, pw_size*sizeof(uint32_t));
 
                 if(err != ESP_OK)
                 {
                     configPRINTF(("Failed to write pw to nvs\n"));
                 }
 
-                configPRINTF(("Set PW to %s\n",pxWriteParam->pValue+1));
+                configPRINTF(("Set PW to %c%c%c%c%c%c%c%c%c%c%c%c\n",pw_32[0],pw_32[1],pw_32[2],pw_32[3],pw_32[4],pw_32[5]
+                ,pw_32[6],pw_32[7],pw_32[8],pw_32[9],pw_32[10],pw_32[11]));
 
                 nvs_close(nvs_storage_handler_w);
             }
