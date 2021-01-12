@@ -96,7 +96,6 @@ static int _initialize()
 {
     int status = EXIT_SUCCESS;
     bool commonLibrariesInitialized = false;
-    bool semaphoreCreated = false;
 
     /* Initialize common libraries required by network manager and demo. */
     if( IotSdk_Init() == true )

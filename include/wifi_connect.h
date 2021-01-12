@@ -1,7 +1,9 @@
 #ifndef WIFI_CONNECT_H
 #define WIFI_CONNECT_H
 
+#include "esp_system.h"
+
 //CONNECT TO WIFI
-void connect_wifi();
+esp_err_t connect_wifi();
 
 #endif
