@@ -12,6 +12,8 @@
 #include "queue.h"
 #include "semphr.h"
 #include "platform/iot_network.h"
+#include "nvs_flash.h"
+#include "nvs.h"
 
 #include "iot_config.h"
 #include "platform/iot_network.h"
@@ -128,7 +130,7 @@ TaskHandle_t adc_task_handle;
 TaskHandle_t state_task_handle;
 TaskHandle_t stats_task_handle;
 TaskHandle_t cmd_connect_task_handle;
-TaskHandle_t net_task_handle;
+//TaskHandle_t net_task_handle;
 
 /**
  * @brief BLE connection ID to send the notification.
@@ -186,7 +188,7 @@ void delete_active_task()
             //vTaskDelete(cmd_connect_task_handle);
             break;
         case NETWORK:
-            vTaskDelete(net_task_handle);
+            //vTaskDelete(net_task_handle);
             break;
         default:
             break;
@@ -291,6 +293,9 @@ int task_manager(struct Data_Queues* data_queues)
                 case COMMAND_SR:
                     configPRINTF(("Starting Sample Rate Verification Task\n"));
                     xTaskCreate(command_verify_sample_rate_task,"verify_sr",DIAGNOSTIC_TASKS_STACK_SIZE,&cmdarg,4,&cmd_connect_task_handle);
+                    break;
+                case NETWORK:
+                    configPRINTF(("Network Configuration Enabled\n"));
                     break;
                 default:
                     configPRINTF(("ERROR: Unknown Diagnostic Task Selected\n"));
@@ -531,6 +536,74 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             active = NONE;
 
             add_state(0x52);
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x06)
+        {
+            configPRINTF(("0x06 ENTERED. Network Configuration Mode Selected\n"));
+            selected = NETWORK;
+
+            add_state(0x06);
+        }
+        else if(active == NETWORK)
+        {
+            if((pxWriteParam->pValue)[0] == 0x41) // starts with A
+            {
+                //write new ssid to nvs
+                nvs_handle nvs_storage_handler_w;
+                esp_err_t err;
+
+                err = nvs_open("storage", NVS_READWRITE, &nvs_storage_handler_w);
+
+                const int ssid_size = (pxWriteParam->length) - 1;
+
+                uint32_t ssid_32[ssid_size];
+
+                for(int i=0;i<ssid_size;i++)
+                {
+                    ssid_32[i] = *((pxWriteParam->pValue) + 1 + i);
+                }
+
+                err = nvs_set_blob(nvs_storage_handler_w, "ssid", ssid_32, ssid_size*sizeof(uint32_t));
+
+                if(err != ESP_OK)
+                {
+                    configPRINTF(("Failed to write ssid to nvs\n"));
+                }
+
+                configPRINTF(("Set SSID to %c%c%c%c%c%c%c%c%c%c\n",ssid_32[0],ssid_32[1],ssid_32[2],ssid_32[3],ssid_32[4],ssid_32[5]
+                ,ssid_32[6],ssid_32[7],ssid_32[8],ssid_32[9]));
+
+                nvs_close(nvs_storage_handler_w);
+            }
+            else if((pxWriteParam->pValue)[0] == 0x42) //starts with B
+            {
+                //write new pw to nvs
+                nvs_handle nvs_storage_handler_w;
+                esp_err_t err;
+
+                err = nvs_open("storage", NVS_READWRITE, &nvs_storage_handler_w);
+
+                const int pw_size = (pxWriteParam->length) - 1;
+
+                uint32_t pw_32[pw_size];
+
+                for(int i=0;i<pw_size;i++)
+                {
+                    pw_32[i] = *((pxWriteParam->pValue) + 1 + i);
+                }
+
+                err = nvs_set_blob(nvs_storage_handler_w, "pw", pw_32, pw_size*sizeof(uint32_t));
+
+                if(err != ESP_OK)
+                {
+                    configPRINTF(("Failed to write pw to nvs\n"));
+                }
+
+                configPRINTF(("Set PW to %c%c%c%c%c%c%c%c%c%c%c%c\n",pw_32[0],pw_32[1],pw_32[2],pw_32[3],pw_32[4],pw_32[5]
+                ,pw_32[6],pw_32[7],pw_32[8],pw_32[9],pw_32[10],pw_32[11]));
+
+                nvs_close(nvs_storage_handler_w);
+            }
         }
         
 
