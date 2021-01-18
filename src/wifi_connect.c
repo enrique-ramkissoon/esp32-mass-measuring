@@ -5,9 +5,6 @@
 
 #include "wifi_connect.h"
 
-#define WIFI_SSID "Massy-9FA4"
-#define WIFI_PASSWORD "DesertOrchid"
-
 #define STORAGE_NAMESPACE "storage"
 
 int ssid_length = 0;
