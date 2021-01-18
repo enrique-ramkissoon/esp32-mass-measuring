@@ -131,6 +131,7 @@ TaskHandle_t state_task_handle;
 TaskHandle_t stats_task_handle;
 TaskHandle_t cmd_connect_task_handle;
 //TaskHandle_t net_task_handle;
+TaskHandle_t adc_calibrate_task_handle;
 
 /**
  * @brief BLE connection ID to send the notification.

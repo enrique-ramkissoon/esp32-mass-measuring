@@ -14,6 +14,7 @@ gpio_num_t GPIO_OUTPUT_SCK = GPIO_NUM_17;
 gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
+double calibration_factor = 0.004775803;
 
 void initialize_hx711(struct Data_Queues* data_queues)
 {
@@ -98,7 +99,7 @@ void mass_read_task(void* pvParameters)
             xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
             double weight = get_weight(adc_reading.adc_out);
         
-            //configPRINTF(("Absolute Weight /g = %f \t Tared Weight = %f\n",weight,weight-TARE));
+            configPRINTF(("Weight /g = %f   Tared Weight/ g = %f\n",weight,weight-TARE));
         }
 
 
@@ -145,20 +146,27 @@ int32_t get_adc_out_32()
     taskEXIT_CRITICAL();
 
     int32_t result32 = ((int32_t)(result<<8))>>8;; //HX711 outputs in 2s complement so convert to signed 32 bit number
-    //configPRINTF(("Result= %i\n",result32));
+    configPRINTF(("Result= %i\n",result32));
     return result32;
 }
 
+// double get_weight(int32_t result32)
+// {
+//     //Range of ADC Values = 23 ones = 8388607
+//     //Range of Differential input = 0.5*(Vdd/Gain) = 0.5*(3.3/128) = 12.891mV
+//     portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891; //in V
+//     //configPRINTF(("Vin = %f\n",Vin));
+
+//     //3.3mV => 10kg
+//     //1g => (3.3e-3)/10000 = 0.33uV /g
+//     double weight = (Vin/(0.33e-6));
+
+//     return(weight);
+// }
+
 double get_weight(int32_t result32)
 {
-    //Range of ADC Values = 23 ones = 8388607
-    //Range of Differential input = 0.5*(Vdd/Gain) = 0.5*(3.3/128) = 12.891mV
-    portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891; //in V
-    //configPRINTF(("Vin = %f\n",Vin));
-
-    //3.3mV => 10kg
-    //1g => (3.3e-3)/10000 = 0.33uV /g
-    double weight = (Vin/(0.33e-6));
+    double weight = (calibration_factor)*((double)result32); //y=mx
 
     return(weight);
 }
@@ -174,8 +182,9 @@ void tare(int iterations)
         }
 
         int32_t result = get_adc_out_32();
-        total += get_weight(result);
+        total += result;
     }
 
-    TARE = (total/iterations);
+    TARE = ((double)total/iterations)*calibration_factor;
+    configPRINTF(("TARE = %f\n",TARE));
 }
