@@ -240,3 +240,26 @@ void command_verify_sample_rate_task(void* pvParameters)
 
     vTaskDelete(NULL);
 }
+
+void lc_calibrate(void* pvParameters)
+{
+    while(true)
+    {
+        struct adc_args adcarg = *((struct adc_args*)(pvParameters));
+
+        struct adc_queue_structure adc_reading;
+
+        if(uxQueueMessagesWaiting(*(adcarg.adc_queue)) > 0)
+        {
+            xQueueReceive(*(adcarg.adc_queue),&adc_reading,pdMS_TO_TICKS(50));
+        }
+        else
+        {
+            configPRINTF(("ADC Queue is empty!\n"));
+        }
+        
+        snprintf(adcarg.payload,adcarg.payload_size,"%d",adc_reading.adc_out);
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}

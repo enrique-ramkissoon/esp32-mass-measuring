@@ -191,6 +191,9 @@ void delete_active_task()
         case NETWORK:
             //vTaskDelete(net_task_handle);
             break;
+        case CALIBRATE:
+            vTaskDelete(adc_calibrate_task_handle);
+            break;
         default:
             break;
     }
@@ -297,6 +300,10 @@ int task_manager(struct Data_Queues* data_queues)
                     break;
                 case NETWORK:
                     configPRINTF(("Network Configuration Enabled\n"));
+                    break;
+                case CALIBRATE:
+                    configPRINTF(("Load Cell Calibration Enabled\n"));
+                    xTaskCreate(lc_calibrate,"lc_calibrate",DIAGNOSTIC_TASKS_STACK_SIZE,&adcarg,4,&adc_calibrate_task_handle);
                     break;
                 default:
                     configPRINTF(("ERROR: Unknown Diagnostic Task Selected\n"));
@@ -449,6 +456,11 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         {
             xResp.pAttrData->pData = ( uint8_t * )(&cmd_result);
             xResp.pAttrData->size = (size_t)(1);
+        }
+        else if(active == CALIBRATE)
+        {
+            xResp.pAttrData->pData = ( uint8_t * ) adc_payload;
+            xResp.pAttrData->size = ADC_PAYLOAD_LENGTH;
         }
 
         xResp.attrDataOffset = 0;
@@ -605,6 +617,13 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
                 nvs_close(nvs_storage_handler_w);
             }
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x07)
+        {
+            configPRINTF(("0x07 ENTERED. Load Cell Calibration Selected\n"));
+            selected = CALIBRATE;
+
+            add_state(0x07);
         }
         
 
