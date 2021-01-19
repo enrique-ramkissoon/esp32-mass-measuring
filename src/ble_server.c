@@ -22,6 +22,7 @@
 #include "ble_server.h"
 #include "diagnostic_tasks.h"
 #include "sys/time.h" 
+#include "hx711_driver.h"
 
 //GATT service, characteristics and descriptor UUIDs used by the sample.
 
@@ -624,6 +625,14 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             selected = CALIBRATE;
 
             add_state(0x07);
+        }
+        else if(active == CALIBRATE)
+        {
+            double cal_factor = 0;
+
+            cal_factor = strtod((char*)(pxWriteParam->pValue),NULL);
+
+            set_calibration_factor(cal_factor);
         }
         
 

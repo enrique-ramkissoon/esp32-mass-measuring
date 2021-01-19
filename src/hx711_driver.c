@@ -188,3 +188,9 @@ void tare(int iterations)
     TARE = ((double)total/iterations)*calibration_factor;
     configPRINTF(("TARE = %f\n",TARE));
 }
+
+void set_calibration_factor(double cf)
+{
+    calibration_factor = cf;
+    configPRINTF(("Set Calibration factor to %f\n",cf));
+}
