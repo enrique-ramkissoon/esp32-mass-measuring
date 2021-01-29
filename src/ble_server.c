@@ -16,6 +16,7 @@
 #include "nvs.h"
 
 #include "iot_config.h"
+#include "iot_wifi.h"
 #include "platform/iot_network.h"
 
 #include "main_util.h"
@@ -458,6 +459,11 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
             xResp.pAttrData->pData = ( uint8_t * )(&cmd_result);
             xResp.pAttrData->size = (size_t)(1);
         }
+        else if (active == NETWORK)
+        {
+            xResp.pAttrData->pData = ( uint8_t * )(text_payload);
+            xResp.pAttrData->size = (size_t)(10);
+        }
         else if(active == CALIBRATE)
         {
             xResp.pAttrData->pData = ( uint8_t * ) adc_payload;
@@ -588,6 +594,38 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
                 ,ssid_32[6],ssid_32[7],ssid_32[8],ssid_32[9]));
 
                 nvs_close(nvs_storage_handler_w);
+
+
+                const uint8_t ucNumNetworks = 12; //Get 12 scan results
+                WIFIScanResult_t xScanResults[ ucNumNetworks ];
+                WIFI_Scan( xScanResults, ucNumNetworks );
+
+                int8_t wifi_rssi = 0;
+                int8_t wifi_ch = 0;
+
+                char ssid_8[ssid_size + 1];
+                
+                for(int i=0;i<ssid_size;i++)
+                {
+                    ssid_8[i] = (char)(ssid_32[i]);
+                }
+                ssid_8[ssid_size] = (char)0x00; //end with null terminator
+
+                for(int i=0;i<ucNumNetworks;i++)
+                {
+                    if(strcmp(ssid_8,xScanResults[i].cSSID) == 0)
+                    {
+                        configPRINTF(("Found AP\n"));
+                        wifi_rssi = xScanResults[i].cRSSI;
+                        wifi_ch = xScanResults[i].cChannel;
+                        break;
+                    }
+                }
+
+                clear_text_payload();
+
+                snprintf(text_payload, 500, "%i|%i", wifi_rssi, wifi_ch);
+
             }
             else if((pxWriteParam->pValue)[0] == 0x42) //starts with B
             {
