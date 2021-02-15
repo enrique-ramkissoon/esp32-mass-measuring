@@ -431,7 +431,7 @@ void read_attribute(IotBleAttributeEvent_t * pEventParam )
         if(active == ADC)
         {
             xResp.pAttrData->pData = ( uint8_t * ) adc_payload;
-            xResp.pAttrData->size = ADC_PAYLOAD_LENGTH;
+            xResp.pAttrData->size = 20;
         }
         else if(active == TEXT)
         {

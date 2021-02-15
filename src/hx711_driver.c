@@ -14,7 +14,8 @@ gpio_num_t GPIO_OUTPUT_SCK = GPIO_NUM_17;
 gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
-double calibration_factor = 0.004775803;
+double calibration_factor = 0.004684425;
+double last_weight = -1;
 
 void initialize_hx711(struct Data_Queues* data_queues)
 {
@@ -96,10 +97,11 @@ void mass_read_task(void* pvParameters)
             adc_reading.time_ms = time_millis;
         
 
-            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
             double weight = get_weight(adc_reading.adc_out);
+            last_weight = weight;
+            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
         
-            configPRINTF(("Weight /g = %f   Tared Weight/ g = %f\n",weight,weight-TARE));
+            configPRINTF(("Weight /g = %f\n",weight));
         }
 
 
@@ -158,6 +160,7 @@ int32_t get_adc_out_32()
 //     //configPRINTF(("Vin = %f\n",Vin));
 
 //     //3.3mV => 10kg
+
 //     //1g => (3.3e-3)/10000 = 0.33uV /g
 //     double weight = (Vin/(0.33e-6));
 
@@ -166,7 +169,9 @@ int32_t get_adc_out_32()
 
 double get_weight(int32_t result32)
 {
-    double weight = (calibration_factor)*((double)result32); //y=mx
+    int32_t result32_tared = result32 - TARE;
+
+    double weight = (calibration_factor)*((double)result32_tared); //y=mx
 
     return(weight);
 }
@@ -185,7 +190,7 @@ void tare(int iterations)
         total += result;
     }
 
-    TARE = ((double)total/iterations)*calibration_factor;
+    TARE = ((double)total/iterations);
     configPRINTF(("TARE = %f\n",TARE));
 }
 
@@ -193,4 +198,19 @@ void set_calibration_factor(double cf)
 {
     calibration_factor = cf;
     configPRINTF(("Set Calibration factor to %f\n",cf));
+}
+
+double get_calibration_factor()
+{
+    return calibration_factor;
+}
+
+double get_tare()
+{
+    return TARE;
+}
+
+double get_last_mass()
+{
+    return last_weight;
 }
