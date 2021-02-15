@@ -672,6 +672,11 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
 
             set_calibration_factor(cal_factor);
         }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x08)
+        {
+            configPRINTF(("0x08 Entered. Zeroing Scale\n"));
+            tare(10);
+        }
         
 
         xResp.eventStatus = eBTStatusSuccess;
