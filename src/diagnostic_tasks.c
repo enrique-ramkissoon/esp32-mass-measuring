@@ -258,7 +258,7 @@ void lc_calibrate(void* pvParameters)
             configPRINTF(("ADC Queue is empty!\n"));
         }
         
-        snprintf(adcarg.payload,adcarg.payload_size,"%d",adc_reading.adc_out);
+        snprintf(adcarg.payload,adcarg.payload_size,"%d",adc_reading.adc_out - (int)get_tare());
 
         vTaskDelay(pdMS_TO_TICKS(100));
     }

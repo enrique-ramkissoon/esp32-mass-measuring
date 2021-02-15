@@ -10,6 +10,8 @@ int32_t get_adc_out_32();
 double get_weight(int32_t result32);
 void tare(int iterations);
 void set_calibration_factor(double cf);
+double get_calibration_factor();
+double get_tare();
 
 extern enum diagnostic_tasks active;
 

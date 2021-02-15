@@ -99,7 +99,7 @@ void mass_read_task(void* pvParameters)
             xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
             double weight = get_weight(adc_reading.adc_out);
         
-            configPRINTF(("Weight /g = %f   Tared Weight/ g = %f\n",weight,weight-TARE));
+            configPRINTF(("Weight /g = %f\n",weight));
         }
 
 
@@ -166,7 +166,9 @@ int32_t get_adc_out_32()
 
 double get_weight(int32_t result32)
 {
-    double weight = (calibration_factor)*((double)result32); //y=mx
+    int32_t result32_tared = result32 - TARE;
+
+    double weight = (calibration_factor)*((double)result32_tared); //y=mx
 
     return(weight);
 }
@@ -193,4 +195,14 @@ void set_calibration_factor(double cf)
 {
     calibration_factor = cf;
     configPRINTF(("Set Calibration factor to %f\n",cf));
+}
+
+double get_calibration_factor()
+{
+    return calibration_factor;
+}
+
+double get_tare()
+{
+    return TARE;
 }
