@@ -12,6 +12,7 @@ void tare(int iterations);
 void set_calibration_factor(double cf);
 double get_calibration_factor();
 double get_tare();
+double get_last_mass();
 
 extern enum diagnostic_tasks active;
 

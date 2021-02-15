@@ -15,6 +15,7 @@ gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
 double calibration_factor = 0.004684425;
+double last_weight = -1;
 
 void initialize_hx711(struct Data_Queues* data_queues)
 {
@@ -96,8 +97,9 @@ void mass_read_task(void* pvParameters)
             adc_reading.time_ms = time_millis;
         
 
-            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
             double weight = get_weight(adc_reading.adc_out);
+            last_weight = weight;
+            xQueueOverwrite(*((QueueHandle_t*)( ((struct Data_Queues*)(pvParameters))->adc_out_queue )) , (void*)(&adc_reading));
         
             configPRINTF(("Weight /g = %f\n",weight));
         }
@@ -206,4 +208,9 @@ double get_calibration_factor()
 double get_tare()
 {
     return TARE;
+}
+
+double get_last_mass()
+{
+    return last_weight;
 }
