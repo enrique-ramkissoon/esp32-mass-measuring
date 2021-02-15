@@ -14,7 +14,7 @@ gpio_num_t GPIO_OUTPUT_SCK = GPIO_NUM_17;
 gpio_num_t GPIO_INPUT_DT = GPIO_NUM_27;
 
 double TARE = 0;
-double calibration_factor = 0.004775803;
+double calibration_factor = 0.004684425;
 
 void initialize_hx711(struct Data_Queues* data_queues)
 {
@@ -157,7 +157,8 @@ int32_t get_adc_out_32()
 //     portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891; //in V
 //     //configPRINTF(("Vin = %f\n",Vin));
 
-//     //3.3mV => 10kg
+//     //3.3mV => 10kg_EVENT_STA_DISCONNECTED: 2
+
 //     //1g => (3.3e-3)/10000 = 0.33uV /g
 //     double weight = (Vin/(0.33e-6));
 
@@ -187,7 +188,7 @@ void tare(int iterations)
         total += result;
     }
 
-    TARE = ((double)total/iterations)*calibration_factor;
+    TARE = ((double)total/iterations);
     configPRINTF(("TARE = %f\n",TARE));
 }
 
