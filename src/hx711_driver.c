@@ -159,7 +159,7 @@ int32_t get_adc_out_32()
 //     portDOUBLE Vin = ((portDOUBLE)result32/8388607)*0.012891; //in V
 //     //configPRINTF(("Vin = %f\n",Vin));
 
-//     //3.3mV => 10kg_EVENT_STA_DISCONNECTED: 2
+//     //3.3mV => 10kg
 
 //     //1g => (3.3e-3)/10000 = 0.33uV /g
 //     double weight = (Vin/(0.33e-6));
