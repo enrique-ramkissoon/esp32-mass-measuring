@@ -135,6 +135,9 @@ TaskHandle_t cmd_connect_task_handle;
 //TaskHandle_t net_task_handle;
 TaskHandle_t adc_calibrate_task_handle;
 
+bool tare_triggered = false;
+
+
 /**
  * @brief BLE connection ID to send the notification.
  */
@@ -314,6 +317,12 @@ int task_manager(struct Data_Queues* data_queues)
             }
 
             active = selected;
+        }
+
+        if(tare_triggered == true)
+        {
+            tare(5);
+            tare_triggered = false;
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -671,6 +680,12 @@ void write_attribute(IotBleAttributeEvent_t * pEventParam )
             cal_factor = strtod((char*)(pxWriteParam->pValue),NULL);
 
             set_calibration_factor(cal_factor);
+        }
+        else if( pxWriteParam->length == 1 && *(pxWriteParam->pValue) == 0x08)
+        {
+            configPRINTF(("0x08 Entered. Zeroing Scale\n"));
+
+            tare_triggered = true;
         }
         
 
