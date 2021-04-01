@@ -186,6 +186,17 @@ void command_verify_connect_task(void* pvParameters)
             configPRINTF(("DOUT not connected \n"));
             
             *cmd_result = (char)0x00;
+        }else
+        {
+            get_adc_out_32();
+        
+            ets_delay_us(2);
+
+            if(gpio_get_level(DOUT_PIN) != 1)
+            {
+                configPRINTF(("EITHER SCK OR DOUT DISCONNECTED\n"));
+                *cmd_result = (char)0x00;
+            }
         }
         
     }else
