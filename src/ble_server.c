@@ -1,3 +1,7 @@
+/*
+    Code for configuring and initializing BLE server adapted from: https://github.com/aws/amazon-freertos/blob/master/demos/ble/gatt_server/iot_ble_gatt_server_demo.c
+*/
+
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "iot_demo_logging.h"
