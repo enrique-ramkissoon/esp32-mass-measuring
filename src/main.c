@@ -1,3 +1,9 @@
+/*
+
+    Code for configuring ESP32 adapted from: https://github.com/aws/amazon-freertos/blob/master/vendors/espressif/boards/esp32/aws_demos/application_code/main.c
+
+*/
+
 
 #include "iot_config.h"
 
