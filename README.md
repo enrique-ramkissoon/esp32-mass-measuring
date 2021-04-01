@@ -3,6 +3,8 @@
 This is one of two repositories which make up the ESP32-based Diagnostic System for ECNG3020
 This repository contains the code which runs on the ESP32.
 
+Accompanied by mobile application: https://github.com/enrique-ramkissoon/esp32_diagnostics_app
+
 ## Setup
 
 These setup instructions are intended for use on Linux.
